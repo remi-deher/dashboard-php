@@ -10,8 +10,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusDot = cardElement.querySelector('.status-dot');
         if (!statusDot) return;
 
-        // On encode l'URL pour la passer en paramètre GET
-        const fetchUrl = `/api/check_status.php?url=${encodeURIComponent(service.url)}`;
+        // =====================================================================
+        // MODIFICATION ICI : L'URL pointe vers le nouveau routeur API.
+        // On passe l'action 'checkStatus' en paramètre.
+        // =====================================================================
+        const fetchUrl = `/api/?action=checkStatus&url=${encodeURIComponent(service.url)}`;
 
         fetch(fetchUrl)
             .then(response => {
@@ -37,7 +40,11 @@ document.addEventListener('DOMContentLoaded', () => {
      * Récupère les services et construit le dashboard.
      */
     const buildDashboard = () => {
-        fetch('/api/get_services.php')
+        // =====================================================================
+        // MODIFICATION ICI : L'URL pointe vers le nouveau routeur API.
+        // On passe l'action 'getServices' en paramètre.
+        // =====================================================================
+        fetch('/api/?action=getServices')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('La réponse du serveur des services n\'est pas OK');
@@ -47,19 +54,16 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(groups => {
                 container.innerHTML = ''; // Vide le message de chargement
 
-                // Pour chaque groupe reçu du PHP...
+                // Le reste de la logique de construction de la page ne change pas du tout.
                 for (const groupName in groups) {
-                    // 1. Crée le titre du groupe
                     const groupTitle = document.createElement('h2');
                     groupTitle.className = 'group-title';
                     groupTitle.textContent = groupName;
                     container.appendChild(groupTitle);
 
-                    // 2. Crée la grille pour les services
                     const grid = document.createElement('div');
                     grid.className = 'service-grid';
 
-                    // 3. Pour chaque service dans le groupe...
                     groups[groupName].forEach(service => {
                         const card = document.createElement('a');
                         card.className = 'service-card';
@@ -76,7 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         `;
                         grid.appendChild(card);
 
-                        // 4. On lance la vérification du statut pour cette carte
                         checkServiceStatus(service, card);
                     });
                     
