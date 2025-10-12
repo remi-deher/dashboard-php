@@ -1,0 +1,15 @@
+<?php
+// Fichier: /config/config.php
+
+return [
+    'database' => [
+        'host' => '0.0.0.0',
+        'dbname'   => 'nom_de_votre_base',
+        'user' => 'votre_utilisateur_db',
+        'pass' => 'votre_mot_de_passe_db',
+        'charset' => 'utf8mb4'
+    ],
+    'app' => [
+        'name' => 'Mon Super Dashboard'
+    ]
+];
