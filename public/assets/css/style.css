@@ -97,3 +97,85 @@ body {
 .status-dot.offline {
     background-color: var(--status-offline);
 }
+
+/* ============================================ */
+/* STYLES DE LA NAVBAR                          */
+/* ============================================ */
+
+.navbar {
+    background-color: var(--card-bg-color);
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 12px;
+    margin-bottom: 40px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Titre du dashboard */
+.navbar-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-color);
+}
+
+/* Barre de recherche */
+.navbar-search {
+    flex-grow: 1; /* Permet à la recherche de prendre l'espace disponible */
+    max-width: 500px;
+    margin: 0 30px;
+}
+
+.search-form {
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-color);
+    border-radius: 8px;
+    padding: 5px 15px;
+}
+
+.search-form .fa-google {
+    color: #4285F4; /* Couleur de Google */
+    font-size: 1.1rem;
+}
+
+.search-form input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-color);
+    font-size: 1rem;
+    padding: 8px 12px;
+}
+
+.search-form input::placeholder {
+    color: #a0aec0;
+}
+
+/* Actions et bouton Gérer */
+.navbar-actions .manage-btn {
+    background-color: var(--accent-color);
+    color: #fff;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.navbar-actions .manage-btn:hover {
+    background-color: #2c7a7b; /* Une teinte plus foncée de l'accent */
+}
+
+/* Suppression de l'ancien header qui n'est plus utilisé */
+.main-header {
+    display: none;
+}

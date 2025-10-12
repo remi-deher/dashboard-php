@@ -1,0 +1,141 @@
+/* Fichier: /public/assets/css/admin.css */
+
+.admin-container {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 20px;
+    background-color: var(--card-bg-color);
+    border-radius: 12px;
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}
+
+.admin-header h1 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+.back-btn {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+section {
+    margin-bottom: 40px;
+}
+
+h2 {
+    color: var(--text-color);
+    margin-bottom: 20px;
+}
+
+/* Style du tableau */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+thead {
+    background-color: var(--card-hover-bg-color);
+}
+
+tbody tr:hover {
+    background-color: #3c4a60;
+}
+
+td.actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+td a {
+    color: var(--text-color);
+}
+
+/* Style des formulaires */
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+input[type="text"],
+input[type="url"],
+input[type="number"],
+textarea {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-color);
+    font-size: 1rem;
+}
+
+textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.form-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+/* Style des boutons */
+.submit-btn, .edit-btn, .delete-btn, .cancel-btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: opacity 0.2s ease;
+}
+
+.submit-btn:hover, .edit-btn:hover, .delete-btn:hover, .cancel-btn:hover {
+    opacity: 0.85;
+}
+
+.submit-btn {
+    background-color: var(--status-online);
+    color: #fff;
+}
+
+.edit-btn {
+    background-color: #f6ad55; /* Orange */
+    color: #000;
+    display: inline-block;
+}
+
+.delete-btn {
+    background-color: var(--status-offline);
+    color: #fff;
+}
+
+.cancel-btn {
+    background-color: #718096; /* Gris */
+    color: #fff;
+}

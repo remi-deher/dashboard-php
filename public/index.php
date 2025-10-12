@@ -9,10 +9,26 @@
 </head>
 <body>
 
-    <header class="main-header">
-        <h1>Mon Dashboard de Services</h1>
-    </header>
+    <nav class="navbar">
+        <div class="navbar-title">
+            <i class="fas fa-gauge"></i>
+            <span>Mon Dashboard</span>
+        </div>
 
+        <div class="navbar-search">
+            <form action="https://www.google.com/search" method="get" target="_blank" class="search-form">
+                <i class="fab fa-google"></i>
+                <input type="search" name="q" placeholder="Rechercher sur Google..." required>
+            </form>
+        </div>
+
+        <div class="navbar-actions">
+            <a href="/admin.php" class="manage-btn">
+                <i class="fas fa-cog"></i>
+                <span>Gérer</span>
+            </a>
+        </div>
+    </nav>
     <main id="dashboard-container">
         <p class="loading-message">Chargement des services...</p>
     </main>
