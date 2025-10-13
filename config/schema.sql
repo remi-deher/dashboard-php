@@ -32,3 +32,16 @@ CREATE TABLE settings (
 );
 
 INSERT INTO settings (setting_key, setting_value) VALUES ('background', 'linear-gradient(160deg, #161b22 0%, #0d1117 100%)');
+
+-- Ajoute une colonne pour les URL d'icônes personnalisées dans la table des services
+ALTER TABLE services ADD COLUMN icone_url VARCHAR(255) NULL DEFAULT NULL;
+
+-- Ajoute une colonne pour les URL d'icônes personnalisées dans la table des dashboards
+ALTER TABLE dashboards ADD COLUMN icone_url VARCHAR(255) NULL DEFAULT NULL;
+
+-- On renomme la clé 'background' en 'background_color' pour plus de clarté
+UPDATE settings SET setting_key = 'background_color' WHERE setting_key = 'background';
+
+ALTER TABLE services
+ADD COLUMN card_size VARCHAR(20) DEFAULT 'medium',
+ADD COLUMN card_color VARCHAR(30) NULL DEFAULT NULL;

@@ -17,7 +17,7 @@ class ApiController
     {
         header('Content-Type: application/json');
         try {
-            $stmt = $this->serviceModel->getPdo()->query('SELECT id, nom, icone FROM dashboards ORDER BY ordre_affichage, nom');
+            $stmt = $this->serviceModel->getPdo()->query('SELECT id, nom, icone, icone_url FROM dashboards ORDER BY ordre_affichage, nom');
             echo json_encode($stmt->fetchAll());
         } catch (\Exception $e) {
             http_response_code(500);
@@ -47,7 +47,10 @@ class ApiController
                     'nom' => $service['nom'],
                     'url' => $service['url'],
                     'icone' => $service['icone'],
-                    'description' => $service['description']
+                    'icone_url' => $service['icone_url'],
+                    'description' => $service['description'],
+                    'card_size' => $service['card_size'],
+                    'card_color' => $service['card_color']
                 ];
             }
             echo json_encode($grouped_services);
@@ -65,6 +68,7 @@ class ApiController
             echo json_encode(['status' => 'error', 'message' => 'URL invalide ou manquante.']);
             return;
         }
+
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_NOBODY, true);
@@ -73,10 +77,24 @@ class ApiController
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        
         curl_exec($ch);
+        
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        
+        // --- CORRECTION DE LA CONVERSION D'UNITÉ ---
+        // On divise par 1000 pour passer des microsecondes aux millisecondes
+        $connect_time_ms = round(curl_getinfo($ch, CURLINFO_CONNECT_TIME_T) / 1000);
+        $ttfb_ms = round(curl_getinfo($ch, CURLINFO_STARTTRANSFER_TIME_T) / 1000);
+
         curl_close($ch);
+        
         $is_online = ($http_code >= 200 && $http_code < 400);
-        echo json_encode(['status' => $is_online ? 'online' : 'offline']);
+        
+        echo json_encode([
+            'status' => $is_online ? 'online' : 'offline',
+            'connect_time' => $connect_time_ms,
+            'ttfb' => $ttfb_ms
+        ]);
     }
 }
