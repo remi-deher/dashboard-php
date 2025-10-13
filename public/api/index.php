@@ -4,9 +4,11 @@
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
+// 1. Chargement de l'autoloader de Composer
+require_once __DIR__ . '/../../vendor/autoload.php';
+
+// 2. Connexion à la BDD
 require_once __DIR__ . '/../../src/db_connection.php';
-require_once __DIR__ . '/../../src/Controller/ApiController.php';
-require_once __DIR__ . '/../../src/Model/ServiceModel.php';
 
 if (!isset($pdo)) {
     header('Content-Type: application/json');
@@ -15,13 +17,13 @@ if (!isset($pdo)) {
     exit;
 }
 
-$serviceModel = new ServiceModel($pdo);
-$controller = new ApiController($serviceModel);
+// 3. Initialisation des objets avec leur namespace
+$serviceModel = new App\Model\ServiceModel($pdo);
+$controller = new App\Controller\ApiController($serviceModel);
 
 $action = $_GET['action'] ?? '';
 
 switch ($action) {
-    // NOUVELLE ROUTE
     case 'getDashboards':
         $controller->getDashboards();
         break;

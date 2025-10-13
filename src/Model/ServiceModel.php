@@ -1,6 +1,10 @@
 <?php
 // Fichier: /src/Model/ServiceModel.php
 
+namespace App\Model;
+
+use PDO;
+
 class ServiceModel
 {
     private PDO $pdo;
@@ -10,10 +14,6 @@ class ServiceModel
         $this->pdo = $pdo;
     }
 
-    // ==========================================================
-    // MÉTHODE MANQUANTE : C'EST LA CAUSE DE VOTRE ERREUR
-    // Elle permet aux autres parties du code d'accéder à la connexion PDO.
-    // ==========================================================
     public function getPdo(): PDO
     {
         return $this->pdo;
@@ -25,9 +25,6 @@ class ServiceModel
         return $stmt->fetchAll();
     }
 
-    // =================================================================
-    // NOUVELLE MÉTHODE : Assurez-vous qu'elle est bien présente aussi
-    // =================================================================
     public function getAllByDashboardId(int $dashboardId): array
     {
         $stmt = $this->pdo->prepare(
@@ -42,12 +39,9 @@ class ServiceModel
         $stmt = $this->pdo->prepare('SELECT * FROM services WHERE id = ?');
         $stmt->execute([$id]);
         $result = $stmt->fetch();
-        return $result ?: null;
+        return $result === false ? null : $result;
     }
 
-    // ==========================================================
-    // MÉTHODE MODIFIÉE : Ajout de 'dashboard_id'
-    // ==========================================================
     public function create(array $data): void
     {
         $stmt = $this->pdo->prepare(
@@ -60,13 +54,10 @@ class ServiceModel
             $data['description'],
             $data['groupe'],
             $data['ordre_affichage'],
-            $data['dashboard_id'] // Champ ajouté
+            $data['dashboard_id']
         ]);
     }
 
-    // ==========================================================
-    // MÉTHODE MODIFIÉE : Ajout de 'dashboard_id'
-    // ==========================================================
     public function update(int $id, array $data): void
     {
         $stmt = $this->pdo->prepare(
@@ -79,7 +70,7 @@ class ServiceModel
             $data['description'],
             $data['groupe'],
             $data['ordre_affichage'],
-            $data['dashboard_id'], // Champ ajouté
+            $data['dashboard_id'],
             $id
         ]);
     }

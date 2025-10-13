@@ -1,7 +1,10 @@
 <?php
 // Fichier: /src/Controller/AdminController.php
 
-require_once __DIR__ . '/../Model/ServiceModel.php';
+namespace App\Controller;
+
+use App\Model\ServiceModel;
+use PDO;
 
 class AdminController
 {
@@ -78,7 +81,6 @@ class AdminController
     }
 
     private function deleteDashboard(int $id): void {
-        // Optionnel : Réassigner les services de ce dashboard ou les supprimer
         $this->pdo->prepare("UPDATE services SET dashboard_id = (SELECT id FROM dashboards ORDER BY id LIMIT 1) WHERE dashboard_id = ?")->execute([$id]);
         $this->pdo->prepare("DELETE FROM dashboards WHERE id = ?")->execute([$id]);
     }

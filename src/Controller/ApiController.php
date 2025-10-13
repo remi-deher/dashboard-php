@@ -1,7 +1,9 @@
 <?php
 // Fichier: /src/Controller/ApiController.php
 
-require_once __DIR__ . '/../Model/ServiceModel.php';
+namespace App\Controller;
+
+use App\Model\ServiceModel;
 
 class ApiController
 {
@@ -11,7 +13,6 @@ class ApiController
         $this->serviceModel = $serviceModel;
     }
 
-    // NOUVELLE MÉTHODE pour lister les dashboards
     public function getDashboards(): void
     {
         header('Content-Type: application/json');
@@ -24,7 +25,6 @@ class ApiController
         }
     }
 
-    // MÉTHODE MODIFIÉE pour filtrer par dashboard_id
     public function getServices(): void {
         header('Content-Type: application/json');
         $dashboardId = (int)($_GET['dashboard_id'] ?? 0);
@@ -35,7 +35,6 @@ class ApiController
         }
 
         try {
-            // On utilise la nouvelle méthode du modèle
             $services = $this->serviceModel->getAllByDashboardId($dashboardId);
             
             $grouped_services = [];
@@ -59,7 +58,6 @@ class ApiController
     }
 
     public function checkStatus(): void {
-        // ... (cette méthode ne change pas) ...
         header('Content-Type: application/json');
         $url = filter_input(INPUT_GET, 'url', FILTER_VALIDATE_URL);
         if (!$url) {
