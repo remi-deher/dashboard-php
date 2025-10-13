@@ -6,6 +6,7 @@
     padding: 20px;
     background-color: var(--card-bg-color);
     border-radius: 12px;
+    transition: background-color 0.3s ease;
 }
 
 .admin-header {
@@ -23,7 +24,7 @@
 }
 
 .back-btn {
-    color: var(--accent-color);
+    color: var(--text-color);
     text-decoration: none;
     font-weight: 500;
 }
@@ -50,11 +51,11 @@ th, td {
 }
 
 thead {
-    background-color: var(--card-hover-bg-color);
+    background-color: rgba(0,0,0,0.1); /* Légèrement plus sombre/clair */
 }
 
 tbody tr:hover {
-    background-color: #3c4a60;
+    background-color: var(--card-hover-bg-color);
 }
 
 td.actions {
@@ -81,6 +82,7 @@ label {
 input[type="text"],
 input[type="url"],
 input[type="number"],
+select,
 textarea {
     width: 100%;
     padding: 10px;
@@ -89,6 +91,7 @@ textarea {
     border-radius: 6px;
     color: var(--text-color);
     font-size: 1rem;
+    box-sizing: border-box; /* Important pour que le padding ne casse pas la largeur */
 }
 
 textarea {

@@ -10,7 +10,7 @@
     <style>
         body {
             /* On utilise la variable $background passée par le DashboardController */
-            background: <?= $background ?: '#161b22' ?>;
+            background: <?= $background ?: 'var(--bg-color)' ?>;
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -22,6 +22,9 @@
     <nav id="dashboard-tabs-container"></nav>
 
     <header class="top-search-container">
+        <button id="theme-switcher" class="manage-btn" title="Changer le thème">
+            <i class="fas fa-sun"></i>
+        </button>
         <form action="https://www.google.com/search" method="get" target="_blank" class="search-form">
             <i class="fab fa-google"></i>
             <input type="search" name="q" placeholder="Rechercher sur le web..." required>
