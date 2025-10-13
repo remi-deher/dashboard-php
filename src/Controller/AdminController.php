@@ -1,59 +1,92 @@
 <?php
 // Fichier: /src/Controller/AdminController.php
 
-// On a besoin du modèle pour travailler
 require_once __DIR__ . '/../Model/ServiceModel.php';
 
 class AdminController
 {
     private ServiceModel $serviceModel;
+    private PDO $pdo;
 
-    public function __construct(ServiceModel $serviceModel)
+    public function __construct(ServiceModel $serviceModel, PDO $pdo)
     {
         $this->serviceModel = $serviceModel;
+        $this->pdo = $pdo;
     }
 
-    // Affiche la page principale de l'admin (le tableau et le formulaire)
-    public function index(): void
+    public function handleRequest(): void
     {
-        $edit_service = null;
-        if (isset($_GET['edit'])) {
-            $edit_service = $this->serviceModel->getById((int)$_GET['edit']);
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $action = $_POST['action'] ?? '';
+            switch ($action) {
+                case 'add_service':
+                    $this->serviceModel->create($_POST);
+                    break;
+                case 'update_service':
+                    $this->serviceModel->update((int)$_POST['id'], $_POST);
+                    break;
+                case 'delete_service':
+                    $this->serviceModel->delete((int)$_POST['id']);
+                    break;
+                case 'add_dashboard':
+                    $this->createDashboard($_POST);
+                    break;
+                case 'update_dashboard':
+                    $this->updateDashboard($_POST);
+                    break;
+                case 'delete_dashboard':
+                    $this->deleteDashboard((int)$_POST['id']);
+                    break;
+                case 'save_settings':
+                    $this->saveSettings($_POST);
+                    break;
+            }
+            header('Location: /admin.php');
+            exit;
         }
 
-        $all_services = $this->serviceModel->getAll();
+        $this->displayPage();
+    }
 
-        // Charge la vue en lui passant les données nécessaires
+    private function displayPage(): void
+    {
+        $all_services = $this->serviceModel->getAll();
+        $all_dashboards = $this->pdo->query('SELECT * FROM dashboards ORDER BY ordre_affichage, nom')->fetchAll();
+        
+        $settings_raw = $this->pdo->query('SELECT * FROM settings')->fetchAll(PDO::FETCH_KEY_PAIR);
+        $settings['background'] = $settings_raw['background'] ?? '';
+        
+        $edit_service = isset($_GET['edit_service']) ? $this->serviceModel->getById((int)$_GET['edit_service']) : null;
+        $edit_dashboard = isset($_GET['edit_dashboard']) ? $this->getDashboardById((int)$_GET['edit_dashboard']) : null;
+        
         require __DIR__ . '/../../templates/admin.php';
     }
 
-    // Gère la soumission du formulaire (ajout ou modification)
-    public function save(): void
-    {
-        $action = $_POST['action'] ?? '';
-        
-        if ($action === 'add') {
-            $this->serviceModel->create($_POST);
-        }
-
-        if ($action === 'update') {
-            $this->serviceModel->update((int)$_POST['id'], $_POST);
-        }
-
-        // Redirection après traitement
-        header('Location: /admin.php');
-        exit;
+    private function saveSettings(array $data): void {
+        $stmt = $this->pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES ('background', ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+        $stmt->execute([$data['background']]);
     }
 
-    // Gère la suppression d'un service
-    public function delete(): void
-    {
-        $id = (int)($_POST['id'] ?? 0);
-        if ($id > 0) {
-            $this->serviceModel->delete($id);
-        }
+    private function createDashboard(array $data): void {
+        $stmt = $this->pdo->prepare("INSERT INTO dashboards (nom, icone, ordre_affichage) VALUES (?, ?, ?)");
+        $stmt->execute([$data['nom'], $data['icone'], $data['ordre_affichage']]);
+    }
+    
+    private function updateDashboard(array $data): void {
+        $stmt = $this->pdo->prepare("UPDATE dashboards SET nom = ?, icone = ?, ordre_affichage = ? WHERE id = ?");
+        $stmt->execute([$data['nom'], $data['icone'], $data['ordre_affichage'], $data['id']]);
+    }
 
-        header('Location: /admin.php');
-        exit;
+    private function deleteDashboard(int $id): void {
+        // Optionnel : Réassigner les services de ce dashboard ou les supprimer
+        $this->pdo->prepare("UPDATE services SET dashboard_id = (SELECT id FROM dashboards ORDER BY id LIMIT 1) WHERE dashboard_id = ?")->execute([$id]);
+        $this->pdo->prepare("DELETE FROM dashboards WHERE id = ?")->execute([$id]);
+    }
+    
+    private function getDashboardById(int $id): ?array {
+        $stmt = $this->pdo->prepare("SELECT * FROM dashboards WHERE id = ?");
+        $stmt->execute([$id]);
+        $result = $stmt->fetch();
+        return $result ?: null;
     }
 }

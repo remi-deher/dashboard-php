@@ -1,65 +1,44 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const container = document.getElementById('dashboard-container');
+    const tabsContainer = document.getElementById('dashboard-tabs-container');
+    const servicesContainer = document.getElementById('dashboard-container');
 
-    /**
-     * Vérifie le statut d'un service et met à jour l'UI.
-     * @param {object} service - L'objet service contenant l'URL.
-     * @param {HTMLElement} cardElement - L'élément de la carte du service.
-     */
     const checkServiceStatus = (service, cardElement) => {
-        const statusDot = cardElement.querySelector('.status-dot');
-        if (!statusDot) return;
-
-        // =====================================================================
-        // MODIFICATION ICI : L'URL pointe vers le nouveau routeur API.
-        // On passe l'action 'checkStatus' en paramètre.
-        // =====================================================================
         const fetchUrl = `/api/?action=checkStatus&url=${encodeURIComponent(service.url)}`;
-
         fetch(fetchUrl)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('La réponse du serveur de statut n\'est pas OK');
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                if (data.status === 'online') {
-                    statusDot.classList.add('online');
-                } else {
-                    statusDot.classList.add('offline');
-                }
+                cardElement.classList.add(data.status === 'online' ? 'online' : 'offline');
             })
             .catch(error => {
                 console.error(`Erreur de statut pour ${service.nom}:`, error);
-                statusDot.classList.add('offline'); // On considère offline en cas d'erreur
+                cardElement.classList.add('offline');
             });
     };
 
-    /**
-     * Récupère les services et construit le dashboard.
-     */
-    const buildDashboard = () => {
-        // =====================================================================
-        // MODIFICATION ICI : L'URL pointe vers le nouveau routeur API.
-        // On passe l'action 'getServices' en paramètre.
-        // =====================================================================
-        fetch('/api/?action=getServices')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('La réponse du serveur des services n\'est pas OK');
-                }
-                return response.json();
-            })
-            .then(groups => {
-                container.innerHTML = ''; // Vide le message de chargement
+    const buildServicesGrid = (dashboardId) => {
+        if (!dashboardId) return;
 
-                // Le reste de la logique de construction de la page ne change pas du tout.
+        // Met en surbrillance l'onglet actif
+        document.querySelectorAll('.dashboard-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.id == dashboardId);
+        });
+
+        servicesContainer.innerHTML = '<p class="loading-message">Chargement des services...</p>';
+        
+        // On demande les services pour un dashboard spécifique
+        fetch(`/api/?action=getServices&dashboard_id=${dashboardId}`)
+            .then(response => response.json())
+            .then(groups => {
+                servicesContainer.innerHTML = '';
+                if (Object.keys(groups).length === 0) {
+                     servicesContainer.innerHTML = '<p class="loading-message">Ce dashboard est vide.</p>';
+                }
+                
                 for (const groupName in groups) {
                     const groupTitle = document.createElement('h2');
                     groupTitle.className = 'group-title';
                     groupTitle.textContent = groupName;
-                    container.appendChild(groupTitle);
+                    servicesContainer.appendChild(groupTitle);
 
                     const grid = document.createElement('div');
                     grid.className = 'service-grid';
@@ -70,28 +49,42 @@ document.addEventListener('DOMContentLoaded', () => {
                         card.href = service.url;
                         card.target = '_blank';
                         card.title = service.description || service.nom;
-
                         card.innerHTML = `
-                            <div class="status-dot"></div>
-                            <div class="icon">
-                                <i class="${service.icone || 'fas fa-link'}"></i>
-                            </div>
-                            <div class="title">${service.nom}</div>
-                        `;
+                            <div class="card-icon"><i class="${service.icone || 'fas fa-link'}"></i></div>
+                            <div class="card-title">${service.nom}</div>`;
                         grid.appendChild(card);
-
                         checkServiceStatus(service, card);
                     });
                     
-                    container.appendChild(grid);
+                    servicesContainer.appendChild(grid);
                 }
             })
             .catch(error => {
-                console.error("Erreur lors de la construction du dashboard :", error);
-                container.innerHTML = '<p class="loading-message" style="color: var(--status-offline);">Impossible de charger les services.</p>';
+                console.error("Erreur lors de la construction du dashboard:", error);
+                servicesContainer.innerHTML = '<p class="loading-message" style="color: #f56565;">Impossible de charger les services.</p>';
             });
     };
 
-    // Lancement de la construction de la page
-    buildDashboard();
+    const loadTabsAndFirstDashboard = () => {
+        fetch('/api/?action=getDashboards')
+            .then(response => response.json())
+            .then(dashboards => {
+                if (dashboards.length === 0) {
+                    servicesContainer.innerHTML = '<p class="loading-message">Aucun dashboard configuré. Allez dans le panneau de gestion.</p>';
+                    return;
+                }
+                tabsContainer.innerHTML = '';
+                dashboards.forEach(db => {
+                    const tab = document.createElement('button');
+                    tab.className = 'dashboard-tab';
+                    tab.dataset.id = db.id;
+                    tab.innerHTML = `<i class="${db.icone}"></i> ${db.nom}`;
+                    tab.onclick = () => buildServicesGrid(db.id);
+                    tabsContainer.appendChild(tab);
+                });
+                buildServicesGrid(dashboards[0].id);
+            });
+    };
+
+    loadTabsAndFirstDashboard();
 });
