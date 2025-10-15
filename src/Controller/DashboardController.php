@@ -22,7 +22,6 @@ class DashboardController
         $all_services = $this->serviceModel->getAll();
         $all_dashboards = $this->pdo->query('SELECT * FROM dashboards ORDER BY ordre_affichage, nom')->fetchAll();
         
-        // On récupère toutes les clés de la table settings
         $settings_raw = $this->pdo->query('SELECT * FROM settings')->fetchAll(PDO::FETCH_KEY_PAIR);
         $settings['background_color'] = $settings_raw['background_color'] ?? '';
         $settings['background_image'] = $settings_raw['background_image'] ?? '';
@@ -33,7 +32,6 @@ class DashboardController
         require __DIR__ . '/../../templates/dashboard.php';
     }
     
-    // Méthodes pour les routes d'édition
     public function showAdminForService(int $id): void
     {
         $this->index($id, null);
@@ -64,7 +62,6 @@ class DashboardController
     }
 
     public function deleteService(int $id): void {
-        // Avant de supprimer le service, on supprime son icône personnalisée si elle existe
         $service = $this->serviceModel->getById($id);
         if (!empty($service['icone_url'])) {
             $this->handleUpload('', $service['icone_url'], true);
@@ -93,7 +90,6 @@ class DashboardController
     }
 
     public function deleteDashboard(int $id): void {
-        // Avant de supprimer le dashboard, on supprime son icône personnalisée si elle existe
         $dashboard = $this->getDashboardById($id);
         if (!empty($dashboard['icone_url'])) {
             $this->handleUpload('', $dashboard['icone_url'], true);
@@ -106,11 +102,9 @@ class DashboardController
     }
 
     public function saveSettings(): void {
-        // Gère la couleur
         $stmt = $this->pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES ('background_color', ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
         $stmt->execute([$_POST['background_color']]);
 
-        // Gère l'upload d'image
         $stmt = $this->pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'background_image'");
         $current_image = $stmt->fetchColumn();
         $image_url = $this->handleUpload('background_image', $current_image ?: null, isset($_POST['remove_background_image']));
@@ -122,6 +116,43 @@ class DashboardController
         exit;
     }
     
+    /**
+     * NOUVELLE MÉTHODE POUR SAUVEGARDER LA DISPOSITION
+     */
+    public function saveLayout(): void {
+        header('Content-Type: application/json');
+        $layoutData = json_decode(file_get_contents('php://input'), true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($layoutData)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Données JSON invalides.']);
+            return;
+        }
+
+        try {
+            $this->pdo->beginTransaction();
+            $stmt = $this->pdo->prepare(
+                'UPDATE services SET gs_x = ?, gs_y = ?, gs_width = ?, gs_height = ? WHERE id = ?'
+            );
+            foreach ($layoutData as $item) {
+                $stmt->execute([
+                    $item['x'],
+                    $item['y'],
+                    $item['width'],
+                    $item['height'],
+                    $item['id']
+                ]);
+            }
+            $this->pdo->commit();
+            echo json_encode(['success' => true]);
+        } catch (\Exception $e) {
+            $this->pdo->rollBack();
+            http_response_code(500);
+            echo json_encode(['error' => 'Erreur lors de la sauvegarde.', 'details' => $e->getMessage()]);
+        }
+        exit;
+    }
+
     private function getDashboardById(int $id): ?array {
         $stmt = $this->pdo->prepare("SELECT * FROM dashboards WHERE id = ?");
         $stmt->execute([$id]);
@@ -129,19 +160,12 @@ class DashboardController
         return $result ?: null;
     }
 
-    /**
-     * Gère le téléversement d'un fichier, sa suppression et retourne le chemin d'accès public.
-     */
     private function handleUpload(string $fileKey, ?string $currentUrl = null, bool $remove = false): ?string
     {
         $uploadDir = __DIR__ . '/../../public/assets/uploads/';
-
-        // Crée le dossier d'upload s'il n'existe pas
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
-
-        // Si la case "supprimer" est cochée ou si un nouveau fichier remplace un ancien
         if (($remove || (isset($_FILES[$fileKey]) && $_FILES[$fileKey]['error'] === UPLOAD_ERR_OK)) && $currentUrl) {
             $filePath = realpath($uploadDir . basename($currentUrl));
             if ($filePath && strpos($filePath, realpath($uploadDir)) === 0 && file_exists($filePath)) {
@@ -151,20 +175,14 @@ class DashboardController
                 return null;
             }
         }
-
-        // Si aucun nouveau fichier n'est envoyé, on garde l'ancien (sauf si remove était coché)
         if (empty($_FILES[$fileKey]) || $_FILES[$fileKey]['error'] !== UPLOAD_ERR_OK) {
             return $currentUrl;
         }
-
-        // Déplace le nouveau fichier
         $extension = pathinfo($_FILES[$fileKey]['name'], PATHINFO_EXTENSION);
         $safeFilename = bin2hex(random_bytes(16)) . '.' . $extension;
-        
         if (move_uploaded_file($_FILES[$fileKey]['tmp_name'], $uploadDir . $safeFilename)) {
             return '/assets/uploads/' . $safeFilename;
         }
-
-        return $currentUrl; // Retourne l'ancien en cas d'échec de l'upload
+        return $currentUrl;
     }
 }

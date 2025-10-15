@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabsContainer = document.getElementById('dashboard-tabs-container');
     const servicesContainer = document.getElementById('dashboard-container');
     const themeSwitcher = document.getElementById('theme-switcher');
+    
+    let grid = null; // Variable globale pour notre grille
     let statusRefreshInterval = null;
     
     // --- GESTION DE LA MODALE DE PARAMÈTRES ---
@@ -13,24 +15,18 @@ document.addEventListener('DOMContentLoaded', () => {
         openModalBtn.addEventListener('click', () => {
             settingsModal.style.display = 'flex';
         });
-        
         closeModalBtn.addEventListener('click', () => {
             settingsModal.style.display = 'none';
         });
-
-        // Ferme la modale si on clique en dehors
         window.addEventListener('click', (event) => {
             if (event.target === settingsModal) {
                 settingsModal.style.display = 'none';
             }
         });
     }
-
-    // Si une URL d'édition est présente, on ouvre la modale
     if (window.location.pathname.includes('/edit/')) {
         if(settingsModal) settingsModal.style.display = 'flex';
     }
-
 
     // --- LOGIQUE DU SÉLECTEUR DE THÈME ---
     const currentTheme = localStorage.getItem('theme') || 'dark';
@@ -53,21 +49,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- LOGIQUE DE STATUT DE SERVICE ---
     const checkServiceStatus = (serviceUrl, cardElement) => {
         if (!serviceUrl || !cardElement) return;
-
         const statusIndicator = cardElement.querySelector('.card-status');
         const latencyIndicator = cardElement.querySelector('.card-latency');
         if(statusIndicator) statusIndicator.classList.add('checking');
 
-        const fetchUrl = `/api/status/check?url=${encodeURIComponent(serviceUrl)}`;
-        
-        fetch(fetchUrl)
+        fetch(`/api/status/check?url=${encodeURIComponent(serviceUrl)}`)
             .then(response => response.json())
             .then(data => {
                 cardElement.classList.remove('online', 'offline');
                 cardElement.classList.add(data.status === 'online' ? 'online' : 'offline');
-                
                 if (latencyIndicator) {
                     if (data.status === 'online') {
                         latencyIndicator.innerHTML = `<span>${data.ttfb}ms</span> <i class="fas fa-info-circle"></i>`;
@@ -79,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             })
             .catch(error => {
-                console.error(`Erreur de statut pour ${serviceUrl}:`, error);
                 cardElement.classList.remove('online');
                 cardElement.classList.add('offline');
                 if (latencyIndicator) {
@@ -91,17 +83,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(statusIndicator) statusIndicator.classList.remove('checking');
             });
     };
-
+    
     const startStatusRefresh = () => {
         if (statusRefreshInterval) clearInterval(statusRefreshInterval);
-        
         statusRefreshInterval = setInterval(() => {
-            document.querySelectorAll('.service-card').forEach(card => {
-                checkServiceStatus(card.dataset.url, card);
+            document.querySelectorAll('.grid-stack-item').forEach(item => {
+                const content = item.querySelector('.grid-stack-item-content');
+                if (content && item.dataset.url) {
+                    checkServiceStatus(item.dataset.url, content);
+                }
             });
-        }, 60000); // Rafraîchit toutes les 60 secondes
+        }, 60000);
     };
 
+
+    // --- LOGIQUE GRIDSTACK ---
     const buildServicesGrid = (dashboardId) => {
         if (!dashboardId) return;
 
@@ -109,73 +105,84 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.classList.toggle('active', tab.dataset.id == dashboardId);
         });
 
-        servicesContainer.style.opacity = '0';
+        if (!grid) {
+            grid = GridStack.init({
+                cellHeight: 90,
+                margin: 10,
+                float: true,
+            });
+
+            grid.on('change', function(event, items) {
+                const layout = items.map(item => ({
+                    id: item.id,
+                    x: item.x,
+                    y: item.y,
+                    width: item.w, // Utiliser w et h pour la sauvegarde
+                    height: item.h
+                }));
+                
+                clearTimeout(window.saveTimeout);
+                window.saveTimeout = setTimeout(() => {
+                    fetch('/api/services/layout/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(layout)
+                    });
+                }, 500);
+            });
+        }
         
-        setTimeout(() => {
-            servicesContainer.innerHTML = '<p class="loading-message">Chargement des services...</p>';
-            servicesContainer.style.opacity = '1';
+        fetch(`/api/services?dashboard_id=${dashboardId}`)
+            .then(response => response.json())
+            .then(services => { // 'services' est maintenant un tableau plat
+                grid.removeAll(); 
+                
+                if (!services || services.length === 0) {
+                     // Si le conteneur a une classe grid-stack, il peut ne pas afficher le message.
+                     // On peut le vider et y ajouter le message.
+                     const container = document.getElementById('dashboard-container');
+                     container.innerHTML = '<p class="loading-message">Ce dashboard est vide.</p>';
+                     return;
+                }
+                
+                // *** CORRECTION ICI ***
+                // On boucle directement sur le tableau de services
+                services.forEach(service => {
+                    let iconHtml = service.icone_url
+                        ? `<img src="${service.icone_url}" class="card-icon-custom" alt="${service.nom}">`
+                        : `<i class="${service.icone || 'fas fa-link'}"></i>`;
 
-            fetch(`/api/services?dashboard_id=${dashboardId}`)
-                .then(response => response.json())
-                .then(groups => {
-                    servicesContainer.innerHTML = '';
-                    if (Object.keys(groups).length === 0) {
-                         servicesContainer.innerHTML = '<p class="loading-message">Ce dashboard est vide.</p>';
-                         return;
-                    }
-                    
-                    let cardAnimationDelay = 0;
-                    for (const groupName in groups) {
-                        const groupTitle = document.createElement('h2');
-                        groupTitle.className = 'group-title collapsible';
-                        groupTitle.innerHTML = `<i class="fas fa-chevron-down"></i> ${groupName}`;
-                        servicesContainer.appendChild(groupTitle);
-
-                        const grid = document.createElement('div');
-                        grid.className = 'service-grid';
-
-                        groups[groupName].forEach(service => {
-                            const card = document.createElement('a');
-                            card.className = `service-card ${service.card_size || 'medium'}`;
-                            card.href = service.url;
-                            card.dataset.url = service.url;
-                            card.target = '_blank';
-                            card.title = service.description || service.nom;
-                            card.style.animationDelay = `${cardAnimationDelay}ms`;
-                            cardAnimationDelay += 30;
-
-                            if (service.card_color) {
-                                card.style.setProperty('--card-bg-color-custom', service.card_color);
-                                card.classList.add('custom-color');
-                            }
-
-                            let iconHtml = service.icone_url
-                                ? `<img src="${service.icone_url}" class="card-icon-custom" alt="${service.nom}">`
-                                : `<i class="${service.icone || 'fas fa-link'}"></i>`;
-
-                            card.innerHTML = `
-                                <div class="card-status"></div>
-                                <div class="card-latency">...</div>
+                    const content = `
+                        <div class="grid-stack-item-content ${service.card_color ? 'custom-color' : ''}" style="${service.card_color ? '--card-bg-color-custom:' + service.card_color : ''}">
+                            <div class="card-status"></div>
+                            <div class="card-latency">...</div>
+                            <a href="${service.url}" target="_blank" class="card-link" title="${service.description || service.nom}">
                                 <div class="card-icon">${iconHtml}</div>
-                                <div class="card-title">${service.nom}</div>`;
-                            grid.appendChild(card);
-                            checkServiceStatus(service.url, card);
-                        });
-                        
-                        servicesContainer.appendChild(grid);
+                                <div class="card-title">${service.nom}</div>
+                            </a>
+                        </div>`;
 
-                        groupTitle.addEventListener('click', () => {
-                            grid.classList.toggle('collapsed');
-                            groupTitle.querySelector('i').classList.toggle('fa-chevron-down');
-                            groupTitle.querySelector('i').classList.toggle('fa-chevron-right');
-                        });
-                    }
-                    startStatusRefresh();
-                })
-                .catch(error => {
-                    console.error("Erreur:", error);
+                    const widgetNode = {
+                        x: service.gs_x,
+                        y: service.gs_y,
+                        w: service.gs_width,
+                        h: service.gs_height,
+                        content: content,
+                        id: service.id
+                    };
+                    
+                    const el = grid.addWidget(widgetNode);
+                    el.dataset.url = service.url;
+                    checkServiceStatus(service.url, el.querySelector('.grid-stack-item-content'));
                 });
-        }, 200);
+                
+                startStatusRefresh();
+            })
+            .catch(error => {
+                console.error("Erreur:", error);
+                const container = document.getElementById('dashboard-container');
+                container.innerHTML = '<p class="loading-message">Erreur de chargement des services.</p>';
+            });
     };
 
     const loadTabsAndFirstDashboard = () => {

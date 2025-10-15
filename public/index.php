@@ -15,6 +15,7 @@ use App\Router;
 
 // 2. Initialisation des services
 $serviceModel = new ServiceModel($pdo);
+$apiController = new ApiController($serviceModel); // Créer l'instance ici
 $dashboardController = new DashboardController($serviceModel, $pdo);
 
 // 3. Création du routeur
@@ -28,9 +29,11 @@ $router->add('GET', '/dashboard/edit/{id}', [$dashboardController, 'showAdminFor
 
 
 // Routes de l'API (pour le front-end JS)
-$router->add('GET', '/api/dashboards', [new ApiController($serviceModel), 'getDashboards']);
-$router->add('GET', '/api/services', [new ApiController($serviceModel), 'getServices']);
-$router->add('GET', '/api/status/check', [new ApiController($serviceModel), 'checkStatus']);
+$router->add('GET', '/api/dashboards', [$apiController, 'getDashboards']);
+$router->add('GET', '/api/services', [$apiController, 'getServices']);
+$router->add('GET', '/api/status/check', [$apiController, 'checkStatus']);
+$router->add('POST', '/api/services/layout/save', [$dashboardController, 'saveLayout']); // <-- NOUVELLE ROUTE
+
 
 // Routes pour les actions des formulaires de gestion (POST)
 $router->add('POST', '/service/add', [$dashboardController, 'addService']);

@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Dashboard</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/gridstack@9.2.1/dist/gridstack.min.css" rel="stylesheet" />
+    
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     
     <style>
         body {
-            /* On utilise les nouvelles variables passées par le DashboardController */
             background-color: <?= htmlspecialchars($settings['background_color'] ?? 'var(--bg-color)') ?>;
             <?php if (!empty($settings['background_image'])): ?>
             background-image: url('<?= htmlspecialchars($settings['background_image']) ?>');
@@ -38,9 +40,7 @@
         </button>
     </header>
 
-    <main id="dashboard-container">
-        <p class="loading-message">Chargement...</p>
-    </main>
+    <main id="dashboard-container" class="grid-stack"></main>
     
     <div id="settings-modal" class="modal-container" style="display: none;">
         <div class="modal-content">
@@ -151,7 +151,6 @@
                             <input type="file" name="icone_upload" accept="image/png, image/jpeg, image/svg+xml, image/webp">
                         </div>
 
-                        <div class="form-group"><label>Taille de la carte</label> <select name="card_size"> <option value="small" <?= (($edit_service['card_size'] ?? '') == 'small') ? 'selected' : '' ?>>Petite</option> <option value="medium" <?= (($edit_service['card_size'] ?? 'medium') == 'medium') ? 'selected' : '' ?>>Moyenne</option> <option value="large" <?= (($edit_service['card_size'] ?? '') == 'large') ? 'selected' : '' ?>>Grande</option> </select> </div>
                         <div class="form-group"><label>Couleur personnalisée</label> <input type="color" name="card_color" value="<?= htmlspecialchars($edit_service['card_color'] ?? '#ffffff') ?>"> </div>
 
                         <div class="form-group"><label>Groupe</label><input type="text" name="groupe" value="<?= htmlspecialchars($edit_service['groupe'] ?? 'Général') ?>" required></div>
@@ -190,6 +189,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/gridstack@9.2.1/dist/gridstack-all.js"></script>
     <script src="/assets/js/main.js"></script>
 </body>
 </html>

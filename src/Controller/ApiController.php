@@ -35,25 +35,28 @@ class ApiController
         }
 
         try {
+            // Note: l'ordre est maintenant géré par GridStack, donc le ORDER BY SQL est moins critique ici.
             $services = $this->serviceModel->getAllByDashboardId($dashboardId);
             
-            $grouped_services = [];
+            // On ne groupe plus par défaut, GridStack gère la disposition
+            $output_services = [];
             foreach ($services as $service) {
-                $group_name = $service['groupe'];
-                if (!isset($grouped_services[$group_name])) {
-                    $grouped_services[$group_name] = [];
-                }
-                $grouped_services[$group_name][] = [
-                    'nom' => $service['nom'],
-                    'url' => $service['url'],
-                    'icone' => $service['icone'],
-                    'icone_url' => $service['icone_url'],
+                $output_services[] = [
+                    'id'          => $service['id'], // <-- ID AJOUTÉ
+                    'nom'         => $service['nom'],
+                    'url'         => $service['url'],
+                    'icone'       => $service['icone'],
+                    'icone_url'   => $service['icone_url'],
                     'description' => $service['description'],
-                    'card_size' => $service['card_size'],
-                    'card_color' => $service['card_color']
+                    'card_color'  => $service['card_color'],
+                    // Coordonnées GridStack
+                    'gs_x'        => $service['gs_x'],
+                    'gs_y'        => $service['gs_y'],
+                    'gs_width'    => $service['gs_width'],
+                    'gs_height'   => $service['gs_height']
                 ];
             }
-            echo json_encode($grouped_services);
+            echo json_encode($output_services);
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Impossible de récupérer les services.']);
@@ -82,8 +85,6 @@ class ApiController
         
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         
-        // --- CORRECTION DE LA CONVERSION D'UNITÉ ---
-        // On divise par 1000 pour passer des microsecondes aux millisecondes
         $connect_time_ms = round(curl_getinfo($ch, CURLINFO_CONNECT_TIME_T) / 1000);
         $ttfb_ms = round(curl_getinfo($ch, CURLINFO_STARTTRANSFER_TIME_T) / 1000);
 
