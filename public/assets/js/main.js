@@ -3,6 +3,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const servicesContainer = document.getElementById('dashboard-container');
     const themeSwitcher = document.getElementById('theme-switcher');
     let statusRefreshInterval = null;
+    
+    // --- GESTION DE LA MODALE DE PARAMÈTRES ---
+    const settingsModal = document.getElementById('settings-modal');
+    const openModalBtn = document.getElementById('open-settings-modal');
+    const closeModalBtn = document.getElementById('close-settings-modal');
+    
+    if(settingsModal && openModalBtn && closeModalBtn) {
+        openModalBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'flex';
+        });
+        
+        closeModalBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+
+        // Ferme la modale si on clique en dehors
+        window.addEventListener('click', (event) => {
+            if (event.target === settingsModal) {
+                settingsModal.style.display = 'none';
+            }
+        });
+    }
+
+    // Si une URL d'édition est présente, on ouvre la modale
+    if (window.location.pathname.includes('/edit/')) {
+        if(settingsModal) settingsModal.style.display = 'flex';
+    }
+
 
     // --- LOGIQUE DU SÉLECTEUR DE THÈME ---
     const currentTheme = localStorage.getItem('theme') || 'dark';
