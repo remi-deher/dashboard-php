@@ -34,6 +34,34 @@ body {
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* --- NOUVEAU: Flèches de navigation --- */
+.nav-arrow {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 999;
+    background-color: var(--card-bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0.2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.nav-arrow:hover {
+    opacity: 1;
+    background-color: var(--card-hover-bg-color);
+}
+#nav-arrow-left { left: 15px; }
+#nav-arrow-right { right: 15px; }
+
+
 /* --- Onglets de Dashboards --- */
 #dashboard-tabs-container {
     display: flex;
@@ -209,6 +237,31 @@ body {
     background-color: var(--card-bg-color-custom);
 }
 
+/* --- NOUVEAU: Tuile "Ajouter" --- */
+.add-new-tile {
+    border-style: dashed !important;
+    border-color: var(--border-color) !important;
+    background-color: transparent !imporant;
+    backdrop-filter: none !important;
+    cursor: pointer !important;
+    color: var(--text-muted-color);
+    transition: all 0.2s ease;
+}
+.add-new-tile:hover {
+    background-color: var(--card-hover-bg-color) !important;
+    color: var(--text-color);
+    border-color: var(--text-color) !important;
+}
+.add-new-tile .fa-plus {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+.add-new-tile span {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+
 /* --- Animations --- */
 @keyframes pulse {
     0% { transform: scale(0.9); opacity: 0.7; }
@@ -217,7 +270,7 @@ body {
 }
 
 
-/* --- Styles pour la modale de gestion (inchangés) --- */
+/* --- Styles pour la modale de gestion --- */
 .modal-container {
     position: fixed;
     z-index: 1000;
@@ -249,6 +302,7 @@ body {
     align-items: center;
     padding: 20px 25px;
     border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0; /* Empêche le header de rétrécir */
 }
 .modal-header h1 { margin: 0; font-size: 1.6rem; }
 
@@ -263,8 +317,44 @@ body {
 }
 .close-modal-btn:hover { color: var(--text-color); }
 
+/* NOUVEAU: Styles pour les onglets de la modale */
+.modal-tabs {
+    display: flex;
+    padding: 10px 25px 0 25px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0; /* Empêche les onglets de rétrécir */
+}
+.modal-tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted-color);
+    padding: 15px 20px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px; /* Pour que la bordure touche la bordure principale */
+}
+.modal-tab-btn:hover {
+    color: var(--text-color);
+}
+.modal-tab-btn.active {
+    color: var(--status-online);
+    border-bottom-color: var(--status-online);
+    font-weight: 600;
+}
+.modal-tab-content {
+    display: none;
+    padding: 25px; /* Padding déplacé ici */
+}
+.modal-tab-content.active {
+    display: block;
+}
+
+
+/* MODIFIÉ: Padding retiré du body, mis dans .modal-tab-content */
 .modal-body {
-    padding: 25px;
+    /* padding: 25px; */ /* RETIRÉ */
     overflow-y: auto;
 }
 
@@ -272,7 +362,7 @@ body {
     background-color: rgba(0,0,0,0.1);
     border-radius: 12px;
     padding: 25px;
-    margin-bottom: 30px;
+    /* margin-bottom: 30px; */ /* RETIRÉ (plus nécessaire) */
     border: 1px solid var(--border-color);
 }
 
