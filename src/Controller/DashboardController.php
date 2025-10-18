@@ -116,9 +116,6 @@ class DashboardController
         exit;
     }
     
-    /**
-     * NOUVELLE MÉTHODE POUR SAUVEGARDER LA DISPOSITION
-     */
     public function saveLayout(): void {
         header('Content-Type: application/json');
         $layoutData = json_decode(file_get_contents('php://input'), true);
@@ -135,11 +132,13 @@ class DashboardController
                 'UPDATE services SET gs_x = ?, gs_y = ?, gs_width = ?, gs_height = ? WHERE id = ?'
             );
             foreach ($layoutData as $item) {
+                // *** CORRECTION DU BUG ICI ***
+                // Utiliser 'w' et 'h' au lieu de 'width' et 'height'
                 $stmt->execute([
                     $item['x'],
                     $item['y'],
-                    $item['width'],
-                    $item['height'],
+                    $item['w'], // Corrigé
+                    $item['h'], // Corrigé
                     $item['id']
                 ]);
             }
@@ -149,6 +148,57 @@ class DashboardController
             $this->pdo->rollBack();
             http_response_code(500);
             echo json_encode(['error' => 'Erreur lors de la sauvegarde.', 'details' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    public function saveDashboardLayout(): void {
+        header('Content-Type: application/json');
+        $dashboardIds = json_decode(file_get_contents('php://input'), true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($dashboardIds)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Données JSON invalides.']);
+            return;
+        }
+
+        try {
+            $this->pdo->beginTransaction();
+            $stmt = $this->pdo->prepare(
+                'UPDATE dashboards SET ordre_affichage = ? WHERE id = ?'
+            );
+            foreach ($dashboardIds as $index => $id) {
+                $stmt->execute([$index, $id]);
+            }
+            $this->pdo->commit();
+            echo json_encode(['success' => true]);
+        } catch (\Exception $e) {
+            $this->pdo->rollBack();
+            http_response_code(500);
+            echo json_encode(['error' => 'Erreur lors de la sauvegarde.', 'details' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    /**
+     * NOUVEAU: Gère le déplacement d'un service vers un autre dashboard
+     */
+    public function moveService(int $id, int $dashboardId): void {
+        header('Content-Type: application/json');
+        
+        $layoutData = json_decode(file_get_contents('php://input'), true);
+        $x = $layoutData['x'] ?? 0;
+        $y = $layoutData['y'] ?? 0;
+        $w = $layoutData['w'] ?? 2; // Défaut 2 (au lieu de 1)
+        $h = $layoutData['h'] ?? 1;
+
+        try {
+            $this->serviceModel->updateDashboardIdAndLayout($id, $dashboardId, $x, $y, $w, $h);
+            
+            echo json_encode(['success' => true]);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Erreur lors du déplacement.', 'details' => $e->getMessage()]);
         }
         exit;
     }

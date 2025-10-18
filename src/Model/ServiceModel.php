@@ -80,4 +80,16 @@ class ServiceModel
         $stmt = $this->pdo->prepare('DELETE FROM services WHERE id = ?');
         $stmt->execute([$id]);
     }
+
+    /**
+     * NOUVEAU: Met à jour le dashboard_id ET la position/taille de la tuile.
+     */
+    public function updateDashboardIdAndLayout(int $serviceId, int $dashboardId, ?int $x, ?int $y, ?int $w, ?int $h): void
+    {
+        // La requête sauvegarde maintenant la position et la taille
+        $stmt = $this->pdo->prepare(
+            'UPDATE services SET dashboard_id = ?, gs_x = ?, gs_y = ?, gs_width = ?, gs_height = ? WHERE id = ?'
+        );
+        $stmt->execute([$dashboardId, $x, $y, $w, $h, $serviceId]);
+    }
 }

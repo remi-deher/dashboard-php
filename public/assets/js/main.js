@@ -1,6 +1,6 @@
 // Fichier: /public/assets/js/main.js
 
-// NOUVEAU: Fonction utilitaire pour limiter les événements (ex: molette)
+// Fonction utilitaire pour limiter les événements (ex: molette)
 const throttle = (func, limit) => {
     let inThrottle;
     return function() {
@@ -19,15 +19,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const servicesContainer = document.getElementById('dashboard-container');
     const themeSwitcher = document.getElementById('theme-switcher');
     
-    let grid = null; // Variable globale pour notre grille
-    let statusRefreshInterval = null;
+    const dropZoneLeft = document.getElementById('drop-zone-left');
+    const dropZoneRight = document.getElementById('drop-zone-right');
+    let draggedTile = null;
+    let switchDashboardTimer = null;
+    let isHoveringZone = false;
+    let isNavigating = false; // Verrou pour empêcher double-clic
 
-    // NOUVEAU: Variables pour la navigation
+    let grid = null;
+
+    let statusRefreshInterval = null;
     let allDashboards = [];
     let currentDashboardId = null;
 
     
-    // --- NOUVEAU: GESTION DE LA MODALE DE PARAMÈTRES (AMÉLIORÉE AVEC ONGLETS) ---
+    // --- GESTION DE LA MODALE DE PARAMÈTRES (inchangée) ---
     const settingsModal = document.getElementById('settings-modal');
     const openModalBtn = document.getElementById('open-settings-modal');
     const closeModalBtn = document.getElementById('close-settings-modal');
@@ -42,15 +48,13 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.classList.toggle('active', tab.dataset.tab === tabId);
         });
     };
-
     modalTabs.forEach(tab => {
         tab.addEventListener('click', () => showModalTab(tab.dataset.tab));
     });
-
     if(settingsModal && openModalBtn && closeModalBtn) {
         openModalBtn.addEventListener('click', () => {
             settingsModal.style.display = 'flex';
-            showModalTab('tab-dashboards'); // Ouvre le premier onglet par défaut
+            showModalTab('tab-dashboards'); 
         });
         closeModalBtn.addEventListener('click', () => {
             settingsModal.style.display = 'none';
@@ -61,25 +65,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
-    // MODIFIÉ: Logique d'ouverture de modale pour gérer les onglets
     if (window.location.pathname.includes('/service/edit/')) {
         if(settingsModal) settingsModal.style.display = 'flex';
-        showModalTab('tab-services'); // Ouvre l'onglet services
+        showModalTab('tab-services'); 
     } else if (window.location.pathname.includes('/dashboard/edit/')) {
         if(settingsModal) settingsModal.style.display = 'flex';
-        showModalTab('tab-dashboards'); // Ouvre l'onglet dashboards
+        showModalTab('tab-dashboards'); 
     }
 
 
     // --- LOGIQUE DU SÉLECTEUR DE THÈME (inchangée) ---
     const currentTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', currentTheme);
-    if (currentTheme === 'light') {
-        themeSwitcher.innerHTML = '<i class="fas fa-moon"></i>';
-    } else {
-        themeSwitcher.innerHTML = '<i class="fas fa-sun"></i>';
-    }
+    if (currentTheme === 'light') themeSwitcher.innerHTML = '<i class="fas fa-moon"></i>';
+    else themeSwitcher.innerHTML = '<i class="fas fa-sun"></i>';
+    
     themeSwitcher.addEventListener('click', () => {
         let theme = document.documentElement.getAttribute('data-theme');
         if (theme === 'dark') {
@@ -132,9 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (statusRefreshInterval) clearInterval(statusRefreshInterval);
         statusRefreshInterval = setInterval(() => {
             document.querySelectorAll('.grid-stack-item').forEach(item => {
-                // Exclure la tuile "ajouter"
-                if (item.id === 'add-tile') return; 
-                
                 const content = item.querySelector('.grid-stack-item-content');
                 if (content && item.dataset.url) {
                     checkServiceStatus(item.dataset.url, content);
@@ -143,173 +140,259 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 60000);
     };
 
-
-    // --- NOUVEAU: Fonctions de navigation ---
-    const navigateToDashboard = (dashboardId) => {
-        if (!dashboardId) return;
-        currentDashboardId = dashboardId;
-        buildServicesGrid(dashboardId);
-    };
-
-    const navigateNext = () => {
+    // --- Helper pour trouver les dashboards adjacents ---
+    const getDashboardByIndex = (offset) => {
         const currentIndex = allDashboards.findIndex(db => db.id == currentDashboardId);
-        const nextIndex = (currentIndex + 1) % allDashboards.length;
-        navigateToDashboard(allDashboards[nextIndex].id);
+        if (currentIndex === -1) return null;
+        
+        const targetIndex = (currentIndex + offset + allDashboards.length) % allDashboards.length;
+        if (targetIndex === currentIndex) return null; // S'il n'y a qu'un seul dashboard
+        
+        return allDashboards[targetIndex];
     };
 
-    const navigatePrev = () => {
-        const currentIndex = allDashboards.findIndex(db => db.id == currentDashboardId);
-        const prevIndex = (currentIndex - 1 + allDashboards.length) % allDashboards.length;
-        navigateToDashboard(allDashboards[prevIndex].id);
+    // --- MODIFIÉ: Logique de déplacement de service (API) ---
+    const moveServiceToDashboard = (serviceId, newDashboardId, layout) => {
+        // Retourne la promesse pour la synchronisation
+        return fetch(`/api/service/move/${serviceId}/${newDashboardId}`, {
+            method: 'POST',
+            // NOUVEAU: Envoyer les coordonnées dans le body
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                x: layout.x,
+                y: layout.y,
+                w: layout.w,
+                h: layout.h
+            })
+        })
+        .then(response => response.json())
+        .catch(error => {
+            console.error("Erreur lors du déplacement de la tuile:", error);
+        });
     };
 
-    // --- NOUVEAU: Écouteurs pour la navigation ---
-    document.getElementById('nav-arrow-left').addEventListener('click', navigatePrev);
-    document.getElementById('nav-arrow-right').addEventListener('click', navigateNext);
-    
-    // Navigation à la molette sur la barre d'onglets
-    tabsContainer.addEventListener('wheel', throttle((event) => {
-        event.preventDefault();
-        if (event.deltaY > 0) {
-            navigateNext();
+    // --- MODIFIÉ: Gestionnaire de survol pendant le glissement ---
+    const handleDragMove = (event) => {
+        if (!draggedTile) return;
+
+        const clientX = event.clientX;
+        const zoneWidth = 90; // Doit correspondre au CSS
+        
+        let targetDashboard = null;
+        let direction = null;
+
+        // Survole la zone de gauche
+        if (clientX < zoneWidth) {
+            targetDashboard = getDashboardByIndex(-1);
+            direction = 'left';
+            if (targetDashboard) {
+                dropZoneLeft.classList.add('drop-hover');
+                dropZoneRight.classList.remove('drop-hover');
+            }
+        // Survole la zone de droite
+        } else if (clientX > window.innerWidth - zoneWidth) {
+            targetDashboard = getDashboardByIndex(1);
+            direction = 'right';
+            if (targetDashboard) {
+                dropZoneRight.classList.add('drop-hover');
+                dropZoneLeft.classList.remove('drop-hover');
+            }
+        // N'est pas sur une zone
         } else {
-            navigatePrev();
+            isHoveringZone = false;
+            clearTimeout(switchDashboardTimer);
+            dropZoneLeft.classList.remove('drop-hover');
+            dropZoneRight.classList.remove('drop-hover');
+            return;
         }
-    }, 200)); // 200ms de throttle
+        
+        // Si on est sur une zone et que ce n'est pas la même qu'avant
+        if (targetDashboard && isHoveringZone !== direction) {
+            isHoveringZone = direction;
+            clearTimeout(switchDashboardTimer);
+            
+            // Lancer le timer pour changer de dashboard
+            switchDashboardTimer = setTimeout(() => {
+                if (!draggedTile) return;
+                
+                const serviceId = draggedTile.gridstackNode.id;
+                // NOUVEAU: Capturer le layout actuel
+                const layout = draggedTile.gridstackNode;
+                
+                // 1. Appeler l'API pour déplacer le service (en envoyant le layout)
+                moveServiceToDashboard(serviceId, targetDashboard.id, layout).then(() => {
+                    // 2. Retirer la tuile de la grille actuelle (elle est maintenant "fantôme")
+                    grid.removeWidget(draggedTile, false, false); // Ne pas sauvegarder, ne pas animer
+                    
+                    // 3. Annuler le glissement natif
+                    grid.cancelDrag();
+                    
+                    // 4. Naviguer vers le nouveau dashboard
+                    if (direction === 'left') navigatePrev();
+                    else navigateNext();
+                });
+                
+            }, 800); // Délai de 800ms
+        }
+    };
 
 
-    // --- LOGIQUE GRIDSTACK (MODIFIÉE) ---
-    const buildServicesGrid = (dashboardId) => {
-        if (!dashboardId) return;
-
-        // Met en surbrillance l'onglet actif
+    // --- Fonctions de navigation (inchangées) ---
+    const navigateToDashboard = (dashboardId) => {
+        if (isNavigating || !dashboardId) return;
+        isNavigating = true;
+        
+        currentDashboardId = dashboardId;
+        
         document.querySelectorAll('.dashboard-tab').forEach(tab => {
             tab.classList.toggle('active', tab.dataset.id == dashboardId);
         });
 
-        if (!grid) {
-            grid = GridStack.init({
-                cellHeight: 90,
-                margin: 10,
-                float: true,
+        buildServicesGrid(dashboardId)
+            .finally(() => {
+                isNavigating = false;
             });
+    };
 
-            grid.on('change', function(event, items) {
-                const layout = items
-                    .filter(item => item.id !== 'add-tile') // Exclure la tuile "add"
-                    .map(item => ({
-                        id: item.id,
-                        x: item.x,
-                        y: item.y,
-                        width: item.w,
-                        height: item.h
-                    }));
-                
-                if (layout.length === 0) return; // Ne pas sauvegarder si on a juste bougé la tuile "add"
+    const navigateNext = () => {
+        const nextDashboard = getDashboardByIndex(1);
+        if (nextDashboard) navigateToDashboard(nextDashboard.id);
+    };
 
-                clearTimeout(window.saveTimeout);
-                window.saveTimeout = setTimeout(() => {
-                    fetch('/api/services/layout/save', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(layout)
-                    });
-                }, 500);
-            });
+    const navigatePrev = () => {
+        const prevDashboard = getDashboardByIndex(-1);
+        if (prevDashboard) navigateToDashboard(prevDashboard.id);
+    };
+
+    // --- Écouteurs pour la navigation (inchangés) ---
+    document.getElementById('nav-arrow-left').addEventListener('click', navigatePrev);
+    document.getElementById('nav-arrow-right').addEventListener('click', navigateNext);
+    
+    tabsContainer.addEventListener('wheel', throttle((event) => {
+        event.preventDefault();
+        if (event.deltaY > 0) navigateNext();
+        else navigatePrev();
+    }, 200));
+
+
+    // --- LOGIQUE GRIDSTACK (inchangée) ---
+    const buildServicesGrid = (dashboardId) => {
+        const existingMessage = servicesContainer.querySelector('.loading-message');
+        if (existingMessage) {
+            servicesContainer.removeChild(existingMessage);
         }
+
+        grid.removeAll();
         
-        fetch(`/api/services?dashboard_id=${dashboardId}`)
+        return fetch(`/api/services?dashboard_id=${dashboardId}`)
             .then(response => response.json())
             .then(services => {
-                grid.removeAll(); 
                 
-                // MODIFIÉ: Ne plus afficher de message "dashboard vide" ici
-                // car on va ajouter la tuile "add"
-                
-                // Boucle sur les services
-                if (services && services.length > 0) {
-                    services.forEach(service => {
-                        let iconHtml = service.icone_url
-                            ? `<img src="${service.icone_url}" class="card-icon-custom" alt="${service.nom}">`
-                            : `<i class="${service.icone || 'fas fa-link'}"></i>`;
-
-                        const content = `
-                            <div class="grid-stack-item-content ${service.card_color ? 'custom-color' : ''}" style="${service.card_color ? '--card-bg-color-custom:' + service.card_color : ''}">
-                                <div class="card-status"></div>
-                                <div class="card-latency">...</div>
-                                <a href="${service.url}" target="_blank" class="card-link" title="${service.description || service.nom}">
-                                    <div class="card-icon">${iconHtml}</div>
-                                    <div class="card-title">${service.nom}</div>
-                                </a>
-                            </div>`;
-
-                        const widgetNode = {
-                            x: service.gs_x,
-                            y: service.gs_y,
-                            w: service.gs_width,
-                            h: service.gs_height,
-                            content: content,
-                            id: service.id
-                        };
-                        
-                        const el = grid.addWidget(widgetNode);
-                        el.dataset.url = service.url;
-                        checkServiceStatus(service.url, el.querySelector('.grid-stack-item-content'));
-                    });
+                if (!services || services.length === 0) {
+                     const emptyMessage = document.createElement('p');
+                     emptyMessage.className = 'loading-message';
+                     emptyMessage.textContent = 'Ce dashboard est vide.';
+                     servicesContainer.appendChild(emptyMessage);
+                     return;
                 }
                 
-                // NOUVEAU: Ajouter la tuile "Ajouter un service"
-                const addTileContent = `
-                    <div class="grid-stack-item-content add-new-tile" id="add-new-service-tile">
-                        <i class="fas fa-plus"></i>
-                        <span>Ajouter un service</span>
-                    </div>
-                `;
-                
-                const addTileNode = {
-                    w: 2, // Largeur par défaut
-                    h: 1, // Hauteur par défaut
-                    content: addTileContent,
-                    id: 'add-tile',
-                    autoPosition: true,
-                    locked: true // Statique
-                };
-                
-                const addTileWidget = grid.addWidget(addTileNode);
-                
-                // Ajouter le listener pour ouvrir la modale
-                addTileWidget.querySelector('#add-new-service-tile').addEventListener('click', () => {
-                    settingsModal.style.display = 'flex';
-                    showModalTab('tab-services');
-                    
-                    // Optionnel: scroll vers le formulaire d'ajout
-                    const serviceForm = document.querySelector('#tab-services form');
-                    if (serviceForm) {
-                        serviceForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
-                });
+                services.forEach(service => {
+                    let iconHtml = service.icone_url
+                        ? `<img src="${service.icone_url}" class="card-icon-custom" alt="${service.nom}">`
+                        : `<i class="${service.icone || 'fas fa-link'}"></i>`;
 
+                    const content = `
+                        <div class="grid-stack-item-content ${service.card_color ? 'custom-color' : ''}" style="${service.card_color ? '--card-bg-color-custom:' + service.card_color : ''}">
+                            <div class="card-status"></div>
+                            <div class="card-latency">...</div>
+                            <a href="${service.url}" target="_blank" class="card-link" title="${service.description || service.nom}">
+                                <div class="card-icon">${iconHtml}</div>
+                                <div class="card-title">${service.nom}</div>
+                            </a>
+                        </div>`;
+
+                    const widgetNode = {
+                        x: service.gs_x,
+                        y: service.gs_y,
+                        w: service.gs_width,
+                        h: service.gs_height,
+                        content: content,
+                        id: service.id
+                    };
+                    
+                    const el = grid.addWidget(widgetNode);
+                    el.dataset.url = service.url;
+                    checkServiceStatus(service.url, el.querySelector('.grid-stack-item-content'));
+                });
+                
                 startStatusRefresh();
             })
             .catch(error => {
                 console.error("Erreur:", error);
-                const container = document.getElementById('dashboard-container');
-                container.innerHTML = '<p class="loading-message">Erreur de chargement des services.</p>';
+                servicesContainer.innerHTML = '<p class="loading-message">Erreur de chargement des services.</p>';
+                throw error;
             });
     };
+    
+    // Initialisation de la grille et des événements (inchangée)
+    const initGrid = () => {
+        grid = GridStack.init({
+            el: '#dashboard-container',
+            cellHeight: 90,
+            margin: 10,
+            float: true,
+        });
 
+        grid.on('dragstart', (event, el) => {
+            draggedTile = el;
+            dropZoneLeft.classList.add('visible');
+            dropZoneRight.classList.add('visible');
+
+            const prevDb = getDashboardByIndex(-1);
+            const nextDb = getDashboardByIndex(1);
+            dropZoneLeft.querySelector('.zone-label').textContent = prevDb ? prevDb.nom : '';
+            dropZoneRight.querySelector('.zone-label').textContent = nextDb ? nextDb.nom : '';
+            
+            document.addEventListener('mousemove', handleDragMove);
+        });
+
+        grid.on('dragstop', (event, el) => {
+            document.removeEventListener('mousemove', handleDragMove);
+            dropZoneLeft.classList.remove('visible', 'drop-hover');
+            dropZoneRight.classList.remove('visible', 'drop-hover');
+            clearTimeout(switchDashboardTimer);
+            draggedTile = null;
+            isHoveringZone = false;
+            
+            const layout = grid.save(false);
+            if (layout.length === 0) return;
+
+            clearTimeout(window.saveTimeout);
+            window.saveTimeout = setTimeout(() => {
+                fetch('/api/services/layout/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(layout)
+                });
+            }, 500);
+        });
+    };
+    
+    // Chargement initial (inchangé)
     const loadTabsAndFirstDashboard = () => {
         fetch('/api/dashboards')
             .then(response => response.json())
             .then(dashboards => {
+                tabsContainer.innerHTML = '';
+                
                 if (dashboards.length === 0) {
                     servicesContainer.innerHTML = '<p class="loading-message">Aucun dashboard configuré.</p>';
-                    return;
                 }
                 
-                allDashboards = dashboards; // Stocker pour la navigation
+                allDashboards = dashboards;
                 
-                tabsContainer.innerHTML = '';
                 dashboards.forEach(db => {
                     const tab = document.createElement('button');
                     tab.className = 'dashboard-tab';
@@ -320,13 +403,51 @@ document.addEventListener('DOMContentLoaded', () => {
                         : `<i class="${db.icone || 'fas fa-th-large'}"></i>`;
                     
                     tab.innerHTML = `${iconHtml} ${db.nom}`;
-                    // MODIFIÉ: Utiliser la nouvelle fonction de navigation
-                    tab.onclick = () => navigateToDashboard(db.id);
+                    tab.onclick = () => {
+                        navigateToDashboard(db.id);
+                    };
                     tabsContainer.appendChild(tab);
                 });
                 
-                // MODIFIÉ: Utiliser la nouvelle fonction de navigation
-                navigateToDashboard(dashboards[0].id);
+                const addBtn = document.createElement('button');
+                addBtn.className = 'dashboard-tab add-tab-btn';
+                addBtn.id = 'add-new-btn';
+                addBtn.innerHTML = '<i class="fas fa-plus"></i> Ajouter';
+                addBtn.title = "Ajouter un service ou un dashboard";
+                addBtn.addEventListener('click', () => {
+                    settingsModal.style.display = 'flex';
+                    showModalTab('tab-services'); 
+                });
+                tabsContainer.appendChild(addBtn);
+
+                new Sortable(tabsContainer, {
+                    animation: 150,
+                    filter: '.add-tab-btn', 
+                    ghostClass: 'sortable-ghost',
+                    dragClass: 'sortable-drag',
+                    onEnd: (evt) => {
+                        const tabs = Array.from(tabsContainer.children);
+                        const newOrderIds = tabs
+                            .filter(tab => tab.dataset.id) 
+                            .map(tab => tab.dataset.id);
+                        
+                        allDashboards.sort((a, b) => {
+                            return newOrderIds.indexOf(a.id.toString()) - newOrderIds.indexOf(b.id.toString());
+                        });
+
+                        fetch('/api/dashboards/layout/save', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(newOrderIds)
+                        });
+                    }
+                });
+
+                initGrid();
+                
+                if (dashboards.length > 0) {
+                    navigateToDashboard(dashboards[0].id);
+                }
             });
     };
 

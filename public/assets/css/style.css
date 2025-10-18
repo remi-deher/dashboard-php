@@ -13,6 +13,8 @@
     --google-icon-color: #4285F4;
     --tab-active-bg: var(--status-online);
     --tab-active-text: #111;
+    --drop-zone-bg: rgba(4, 120, 202, 0.3);
+    --drop-zone-border: #0478ca;
 }
 
 [data-theme="light"] {
@@ -24,6 +26,8 @@
     --border-color: #cbd5e0;
     --tab-active-bg: #3182ce;
     --tab-active-text: #fff;
+    --drop-zone-bg: rgba(59, 130, 246, 0.3);
+    --drop-zone-border: #3b82f6;
 }
 
 body {
@@ -34,7 +38,7 @@ body {
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* --- NOUVEAU: Flèches de navigation --- */
+/* --- Flèches de navigation --- */
 .nav-arrow {
     position: fixed;
     top: 50%;
@@ -60,6 +64,55 @@ body {
 }
 #nav-arrow-left { left: 15px; }
 #nav-arrow-right { right: 15px; }
+
+/* Styles pour les zones de dépôt */
+.drop-zone {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 90px;
+    background-color: var(--drop-zone-bg);
+    border: 3px dashed var(--drop-zone-border);
+    backdrop-filter: blur(5px);
+    
+    display: none; /* Caché par défaut */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    
+    z-index: 2000; /* Au-dessus de tout */
+    color: var(--text-color);
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-align: center;
+    pointer-events: none; /* Important: n'intercepte pas les clics */
+    transition: all 0.2s ease;
+}
+.drop-zone.visible {
+    display: flex;
+}
+.drop-zone .zone-label {
+    font-size: 0.9rem;
+    margin-top: 10px;
+    word-break: break-word;
+    padding: 0 5px;
+}
+.drop-zone.drop-hover { /* Classe quand on survole */
+    transform: scale(1.05);
+    background-color: rgba(4, 120, 202, 0.6);
+}
+#drop-zone-left {
+    left: 0;
+    border-left: none;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+#drop-zone-right {
+    right: 0;
+    border-right: none;
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
 
 
 /* --- Onglets de Dashboards --- */
@@ -96,6 +149,26 @@ body {
 .tab-icon-custom {
     max-height: 1.2em;
     max-width: 1.2em;
+}
+
+/* Style pour le bouton "Ajouter" */
+.add-tab-btn {
+    border-style: dashed !important;
+    color: var(--text-muted-color);
+    background-color: transparent !important;
+}
+.add-tab-btn:hover {
+    color: var(--text-color) !important;
+    background-color: var(--card-hover-bg-color) !important;
+    border-color: var(--text-color) !important;
+}
+/* Style pour l'élément en cours de glissement */
+.sortable-ghost {
+    opacity: 0.4;
+    background: var(--card-hover-bg-color);
+}
+.sortable-drag {
+    cursor: grabbing !important;
 }
 
 
@@ -152,10 +225,14 @@ body {
 
 
 /* --- GRILLE GRIDSTACK --- */
+
+/* MODIFIÉ: Retour au style simple pour un seul conteneur */
 #dashboard-container { 
     max-width: 1200px; 
     margin: 0 auto;
+    min-height: 500px; /* Pour éviter l'effondrement lors du rechargement */
 }
+
 
 .grid-stack-item-content {
     position: relative;
@@ -237,31 +314,6 @@ body {
     background-color: var(--card-bg-color-custom);
 }
 
-/* --- NOUVEAU: Tuile "Ajouter" --- */
-.add-new-tile {
-    border-style: dashed !important;
-    border-color: var(--border-color) !important;
-    background-color: transparent !imporant;
-    backdrop-filter: none !important;
-    cursor: pointer !important;
-    color: var(--text-muted-color);
-    transition: all 0.2s ease;
-}
-.add-new-tile:hover {
-    background-color: var(--card-hover-bg-color) !important;
-    color: var(--text-color);
-    border-color: var(--text-color) !important;
-}
-.add-new-tile .fa-plus {
-    font-size: 2.5rem;
-    margin-bottom: 10px;
-}
-.add-new-tile span {
-    font-size: 1rem;
-    font-weight: 500;
-}
-
-
 /* --- Animations --- */
 @keyframes pulse {
     0% { transform: scale(0.9); opacity: 0.7; }
@@ -270,7 +322,7 @@ body {
 }
 
 
-/* --- Styles pour la modale de gestion --- */
+/* --- Styles pour la modale de gestion (inchangés) --- */
 .modal-container {
     position: fixed;
     z-index: 1000;
@@ -317,7 +369,7 @@ body {
 }
 .close-modal-btn:hover { color: var(--text-color); }
 
-/* NOUVEAU: Styles pour les onglets de la modale */
+/* Styles pour les onglets de la modale */
 .modal-tabs {
     display: flex;
     padding: 10px 25px 0 25px;
@@ -351,10 +403,7 @@ body {
     display: block;
 }
 
-
-/* MODIFIÉ: Padding retiré du body, mis dans .modal-tab-content */
 .modal-body {
-    /* padding: 25px; */ /* RETIRÉ */
     overflow-y: auto;
 }
 
@@ -362,7 +411,6 @@ body {
     background-color: rgba(0,0,0,0.1);
     border-radius: 12px;
     padding: 25px;
-    /* margin-bottom: 30px; */ /* RETIRÉ (plus nécessaire) */
     border: 1px solid var(--border-color);
 }
 

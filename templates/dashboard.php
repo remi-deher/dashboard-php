@@ -31,6 +31,15 @@
     <button id="nav-arrow-left" class="nav-arrow" title="Dashboard précédent"><i class="fas fa-chevron-left"></i></button>
     <button id="nav-arrow-right" class="nav-arrow" title="Dashboard suivant"><i class="fas fa-chevron-right"></i></button>
 
+    <div id="drop-zone-left" class="drop-zone">
+        <i class="fas fa-chevron-left"></i>
+        <span class="zone-label"></span>
+    </div>
+    <div id="drop-zone-right" class="drop-zone">
+        <i class="fas fa-chevron-right"></i>
+        <span class="zone-label"></span>
+    </div>
+
     <nav id="dashboard-tabs-container"></nav>
 
     <header class="top-search-container">
@@ -66,6 +75,7 @@
                 <div id="tab-dashboards" class="modal-tab-content active">
                     <section>
                         <h2>Gestion des Dashboards</h2>
+                        <p>Vous pouvez réorganiser les dashboards en les glissant-déposant dans la barre d'onglets.</p>
                         <table>
                             <thead><tr><th>Nom</th><th>Icône</th><th>Actions</th></tr></thead>
                             <tbody>
@@ -104,7 +114,7 @@
                                 <input type="file" name="icone_upload" accept="image/png, image/jpeg, image/svg+xml, image/webp">
                             </div>
 
-                            <input type="number" name="ordre_affichage" placeholder="Ordre" value="<?= htmlspecialchars($edit_dashboard['ordre_affichage'] ?? '0') ?>">
+                            <input type="number" name="ordre_affichage" placeholder="Ordre (automatique si drag-drop)" value="<?= htmlspecialchars($edit_dashboard['ordre_affichage'] ?? '0') ?>">
                             <button type="submit" class="submit-btn"><?= $edit_dashboard ? 'Mettre à jour' : 'Ajouter' ?></button>
                             <?php if ($edit_dashboard): ?><a href="/" class="cancel-btn">Annuler</a><?php endif; ?>
                         </form>
@@ -209,6 +219,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/gridstack@9.2.1/dist/gridstack-all.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="/assets/js/main.js"></script>
 </body>
 </html>

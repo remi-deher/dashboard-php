@@ -32,7 +32,10 @@ $router->add('GET', '/dashboard/edit/{id}', [$dashboardController, 'showAdminFor
 $router->add('GET', '/api/dashboards', [$apiController, 'getDashboards']);
 $router->add('GET', '/api/services', [$apiController, 'getServices']);
 $router->add('GET', '/api/status/check', [$apiController, 'checkStatus']);
-$router->add('POST', '/api/services/layout/save', [$dashboardController, 'saveLayout']); // <-- NOUVELLE ROUTE
+$router->add('POST', '/api/services/layout/save', [$dashboardController, 'saveLayout']);
+$router->add('POST', '/api/dashboards/layout/save', [$dashboardController, 'saveDashboardLayout']);
+// NOUVELLE ROUTE
+$router->add('POST', '/api/service/move/{id}/{dashboardId}', [$dashboardController, 'moveService']);
 
 
 // Routes pour les actions des formulaires de gestion (POST)

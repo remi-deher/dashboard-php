@@ -35,14 +35,12 @@ class ApiController
         }
 
         try {
-            // Note: l'ordre est maintenant géré par GridStack, donc le ORDER BY SQL est moins critique ici.
             $services = $this->serviceModel->getAllByDashboardId($dashboardId);
             
-            // On ne groupe plus par défaut, GridStack gère la disposition
             $output_services = [];
             foreach ($services as $service) {
                 $output_services[] = [
-                    'id'          => $service['id'], // <-- ID AJOUTÉ
+                    'id'          => $service['id'],
                     'nom'         => $service['nom'],
                     'url'         => $service['url'],
                     'icone'       => $service['icone'],
@@ -50,10 +48,11 @@ class ApiController
                     'description' => $service['description'],
                     'card_color'  => $service['card_color'],
                     // Coordonnées GridStack
-                    'gs_x'        => $service['gs_x'],
-                    'gs_y'        => $service['gs_y'],
-                    'gs_width'    => $service['gs_width'],
-                    'gs_height'   => $service['gs_height']
+                    // *** CORRECTION DU BUG ICI ***
+                    'gs_x'        => $service['gs_x'] ?? 0,
+                    'gs_y'        => $service['gs_y'] ?? 0,
+                    'gs_width'    => $service['gs_width'] ?? 2, // Défaut 2
+                    'gs_height'   => $service['gs_height'] ?? 1  // Défaut 1
                 ];
             }
             echo json_encode($output_services);
