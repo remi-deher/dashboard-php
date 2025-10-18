@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentDashboardId = null;
 
     
-    // --- GESTION DE LA MODALE DE PARAMÈTRES (inchangée) ---
+    // --- GESTION DE LA MODALE DE PARAMÈTRE (inchangée) ---
     const settingsModal = document.getElementById('settings-modal');
     const openModalBtn = document.getElementById('open-settings-modal');
     const closeModalBtn = document.getElementById('close-settings-modal');
@@ -140,23 +140,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 60000);
     };
 
-    // --- Helper pour trouver les dashboards adjacents ---
+    // --- Helper pour trouver les dashboards adjacents (inchangé) ---
     const getDashboardByIndex = (offset) => {
         const currentIndex = allDashboards.findIndex(db => db.id == currentDashboardId);
         if (currentIndex === -1) return null;
         
         const targetIndex = (currentIndex + offset + allDashboards.length) % allDashboards.length;
-        if (targetIndex === currentIndex) return null; // S'il n'y a qu'un seul dashboard
+        if (targetIndex === currentIndex) return null;
         
         return allDashboards[targetIndex];
     };
 
-    // --- MODIFIÉ: Logique de déplacement de service (API) ---
+    // --- Logique de déplacement de service (inchangée) ---
     const moveServiceToDashboard = (serviceId, newDashboardId, layout) => {
-        // Retourne la promesse pour la synchronisation
         return fetch(`/api/service/move/${serviceId}/${newDashboardId}`, {
             method: 'POST',
-            // NOUVEAU: Envoyer les coordonnées dans le body
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -173,17 +171,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- MODIFIÉ: Gestionnaire de survol pendant le glissement ---
+    // --- Gestionnaire de survol pendant le glissement (inchangé) ---
     const handleDragMove = (event) => {
         if (!draggedTile) return;
 
         const clientX = event.clientX;
-        const zoneWidth = 90; // Doit correspondre au CSS
+        const zoneWidth = 90;
         
         let targetDashboard = null;
         let direction = null;
 
-        // Survole la zone de gauche
         if (clientX < zoneWidth) {
             targetDashboard = getDashboardByIndex(-1);
             direction = 'left';
@@ -191,7 +188,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 dropZoneLeft.classList.add('drop-hover');
                 dropZoneRight.classList.remove('drop-hover');
             }
-        // Survole la zone de droite
         } else if (clientX > window.innerWidth - zoneWidth) {
             targetDashboard = getDashboardByIndex(1);
             direction = 'right';
@@ -199,7 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 dropZoneRight.classList.add('drop-hover');
                 dropZoneLeft.classList.remove('drop-hover');
             }
-        // N'est pas sur une zone
         } else {
             isHoveringZone = false;
             clearTimeout(switchDashboardTimer);
@@ -208,33 +203,25 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // Si on est sur une zone et que ce n'est pas la même qu'avant
         if (targetDashboard && isHoveringZone !== direction) {
             isHoveringZone = direction;
             clearTimeout(switchDashboardTimer);
             
-            // Lancer le timer pour changer de dashboard
             switchDashboardTimer = setTimeout(() => {
                 if (!draggedTile) return;
                 
                 const serviceId = draggedTile.gridstackNode.id;
-                // NOUVEAU: Capturer le layout actuel
                 const layout = draggedTile.gridstackNode;
                 
-                // 1. Appeler l'API pour déplacer le service (en envoyant le layout)
                 moveServiceToDashboard(serviceId, targetDashboard.id, layout).then(() => {
-                    // 2. Retirer la tuile de la grille actuelle (elle est maintenant "fantôme")
-                    grid.removeWidget(draggedTile, false, false); // Ne pas sauvegarder, ne pas animer
-                    
-                    // 3. Annuler le glissement natif
+                    grid.removeWidget(draggedTile, false, false);
                     grid.cancelDrag();
                     
-                    // 4. Naviguer vers le nouveau dashboard
                     if (direction === 'left') navigatePrev();
                     else navigateNext();
                 });
                 
-            }, 800); // Délai de 800ms
+            }, 800);
         }
     };
 
@@ -336,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     };
     
-    // Initialisation de la grille et des événements (inchangée)
+    // NOUVEAU: Initialisation de la grille et des événements
     const initGrid = () => {
         grid = GridStack.init({
             el: '#dashboard-container',
@@ -358,6 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.addEventListener('mousemove', handleDragMove);
         });
 
+        // *** CORRECTION PRINCIPALE ICI ***
         grid.on('dragstop', (event, el) => {
             document.removeEventListener('mousemove', handleDragMove);
             dropZoneLeft.classList.remove('visible', 'drop-hover');
@@ -369,18 +357,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const layout = grid.save(false);
             if (layout.length === 0) return;
 
-            clearTimeout(window.saveTimeout);
-            window.saveTimeout = setTimeout(() => {
-                fetch('/api/services/layout/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(layout)
-                });
-            }, 500);
+            // 1. SUPPRESSION du setTimeout
+            
+            // 2. ENVOI de la sauvegarde instantanément
+            fetch('/api/services/layout/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(layout),
+                keepalive: true // 3. AJOUT de keepalive
+            });
         });
     };
     
-    // Chargement initial (inchangé)
+    // Chargement initial
     const loadTabsAndFirstDashboard = () => {
         fetch('/api/dashboards')
             .then(response => response.json())
@@ -420,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 tabsContainer.appendChild(addBtn);
 
+                // *** DEUXIÈME CORRECTION ICI ***
                 new Sortable(tabsContainer, {
                     animation: 150,
                     filter: '.add-tab-btn', 
@@ -435,17 +425,21 @@ document.addEventListener('DOMContentLoaded', () => {
                             return newOrderIds.indexOf(a.id.toString()) - newOrderIds.indexOf(b.id.toString());
                         });
 
+                        // Sauvegarde instantanée avec keepalive
                         fetch('/api/dashboards/layout/save', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(newOrderIds)
+                            body: JSON.stringify(newOrderIds),
+                            keepalive: true // AJOUT de keepalive
                         });
                     }
                 });
 
+                // Initialiser la grille
                 initGrid();
                 
                 if (dashboards.length > 0) {
+                    // Chargement initial
                     navigateToDashboard(dashboards[0].id);
                 }
             });
