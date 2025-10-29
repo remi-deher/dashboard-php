@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const navArrowRight = document.getElementById('nav-arrow-right');
     const dropZoneLeft = document.getElementById('drop-zone-left');
     const dropZoneRight = document.getElementById('drop-zone-right');
+    const quickAddFab = document.getElementById('quick-add-service-fab');
+    const serviceDashboardDropdown = document.querySelector('#tab-services select[name="dashboard_id"]');
 
     // Variables d'état
     let sortableInstances = {}; // Stocke les instances SortableJS par dashboardId
@@ -704,5 +706,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Lancement initial ---
     loadTabsAndFirstDashboard();
+
+    // --- NOUVEAU: Logique du bouton d'ajout rapide ---
+    if (quickAddFab && settingsModal && serviceDashboardDropdown) {
+    quickAddFab.addEventListener('click', () => {
+        // 1. Ouvre la modale
+        settingsModal.style.display = 'flex';
+
+        // 2. Bascule sur l'onglet "Services"
+        // (la fonction showModalTab existe déjà)
+        showModalTab('tab-services'); 
+
+        // 3. Pré-sélectionne le dashboard actuel dans le menu déroulant
+        // (currentDashboardId est déjà suivi par le script)
+        if (currentDashboardId) {
+            serviceDashboardDropdown.value = currentDashboardId;
+        }
+
+        // 4. Optionnel: met le focus sur le champ "Nom" pour un ajout rapide
+        const serviceNameInput = document.querySelector('#tab-services input[name="nom"]');
+        if (serviceNameInput) {
+            serviceNameInput.value = ''; // Vider au cas où
+            serviceNameInput.focus();
+        }
+    });
+}
 
 }); // Fin DOMContentLoaded

@@ -555,3 +555,31 @@ textarea { min-height: 80px; resize: vertical; }
     background: rgba(255,255,255,0.1);
     border-radius: 4px;
 }
+
+/* --- Bouton d'ajout rapide (FAB) --- */
+.fab-add-service {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    width: 56px;
+    height: 56px;
+    /* Utilise la variable de couleur verte du thème */
+    background-color: var(--status-online); 
+    color: #fff; /* Couleur de l'icône + */
+    border: none;
+    border-radius: 50%; /* Le rend circulaire */
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    z-index: 998; /* En dessous des flèches et de la modale */
+}
+
+.fab-add-service:hover {
+    filter: brightness(1.1);
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}

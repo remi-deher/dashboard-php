@@ -260,5 +260,10 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     <script src="/assets/js/main.js"></script>
+
+    <button id="quick-add-service-fab" class="fab-add-service" title="Ajouter un service au dashboard actuel">
+        <i class="fas fa-plus"></i>
+    </button>
+
 </body>
 </html>
