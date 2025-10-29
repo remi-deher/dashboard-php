@@ -487,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (services.error) { throw new Error(services.error); }
 
                 if (!services || services.length === 0) {
-                     container.innerHTML = '<p class="loading-message">Ce dashboard est vide.</p>';
+                     container.innerHTML = '';
                      // Arrêter le rafraîchissement s'il n'y a rien à vérifier
                      if (statusRefreshInterval) clearInterval(statusRefreshInterval);
                      return;
