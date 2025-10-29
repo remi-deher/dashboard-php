@@ -1,0 +1,557 @@
+/* Fichier: /public/assets/themes/default-dark/style.css */
+
+/* --- Variables de couleur (Thème Sombre par défaut) --- */
+:root {
+    --bg-color: #161b22;
+    --card-bg-color: rgba(45, 55, 72, 0.85);
+    --card-hover-bg-color: rgba(74, 85, 104, 0.9);
+    --text-color: #e2e8f0;
+    --text-muted-color: #a0aec0;
+    --border-color: #4a5568;
+    --status-online: #48bb78;
+    --status-offline: #f56565;
+    --google-icon-color: #4285F4;
+    --tab-active-bg: var(--status-online);
+    --tab-active-text: #111;
+    --drop-zone-bg: rgba(4, 120, 202, 0.3);
+    --drop-zone-border: #0478ca;
+}
+
+/* Vous créerez un fichier /public/assets/themes/default-light/style.css
+   avec ces variables surchargées pour le thème clair */
+/*
+[data-theme="light"] {
+    --bg-color: #f0f2f5;
+    --card-bg-color: rgba(255, 255, 255, 0.85);
+    --card-hover-bg-color: rgba(237, 242, 247, 0.9);
+    --text-color: #2d3748;
+    --text-muted-color: #718096;
+    --border-color: #cbd5e0;
+    --tab-active-bg: #3182ce;
+    --tab-active-text: #fff;
+    --drop-zone-bg: rgba(59, 130, 246, 0.3);
+    --drop-zone-border: #3b82f6;
+}
+*/
+
+body {
+    background-color: var(--bg-color); /* Couleur de fond par défaut du thème */
+    color: var(--text-color);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    /* L'image/couleur de fond surchargée via la BDD peut être ajoutée ici ou via <style> dans le template */
+}
+
+/* --- Flèches de navigation --- */
+.nav-arrow {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 999;
+    background-color: var(--card-bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0.2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.nav-arrow:hover {
+    opacity: 1;
+    background-color: var(--card-hover-bg-color);
+}
+#nav-arrow-left { left: 15px; }
+#nav-arrow-right { right: 15px; }
+
+/* Styles pour les zones de dépôt (pour glisser entre dashboards) */
+.drop-zone {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 90px;
+    background-color: var(--drop-zone-bg);
+    border: 3px dashed var(--drop-zone-border);
+    backdrop-filter: blur(5px);
+    display: none; /* Caché par défaut */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000; /* Au-dessus de tout */
+    color: var(--text-color);
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-align: center;
+    pointer-events: none; /* Important: n'intercepte pas les clics */
+    transition: all 0.2s ease;
+}
+.drop-zone.visible {
+    display: flex;
+}
+.drop-zone .zone-label {
+    font-size: 0.9rem;
+    margin-top: 10px;
+    word-break: break-word;
+    padding: 0 5px;
+}
+.drop-zone.drop-hover { /* Classe quand on survole */
+    transform: scale(1.05);
+    background-color: rgba(4, 120, 202, 0.6);
+}
+#drop-zone-left {
+    left: 0;
+    border-left: none;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+#drop-zone-right {
+    right: 0;
+    border-right: none;
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
+
+
+/* --- Onglets de Dashboards --- */
+#dashboard-tabs-container {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.dashboard-tab {
+    background-color: var(--card-bg-color);
+    color: var(--text-muted-color);
+    border: 1px solid var(--border-color);
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.dashboard-tab:hover {
+    color: var(--text-color);
+    background-color: var(--card-hover-bg-color);
+}
+.dashboard-tab.active {
+    color: var(--tab-active-text);
+    background-color: var(--tab-active-bg);
+    border-color: var(--tab-active-bg);
+    font-weight: 600;
+}
+.tab-icon-custom {
+    max-height: 1.2em;
+    max-width: 1.2em;
+}
+
+/* Style pour le bouton "Ajouter" */
+.add-tab-btn {
+    border-style: dashed !important;
+    color: var(--text-muted-color);
+    background-color: transparent !important;
+    width: 44px; /* Ajuster si besoin */
+    justify-content: center;
+}
+.add-tab-btn:hover {
+    color: var(--text-color) !important;
+    background-color: var(--card-hover-bg-color) !important;
+    border-color: var(--text-color) !important;
+}
+/* Style pour l'élément en cours de glissement (SortableJS) */
+.sortable-ghost {
+    opacity: 0.4;
+    background: var(--card-hover-bg-color);
+}
+.sortable-drag {
+    cursor: grabbing !important;
+}
+
+
+/* --- Header & Recherche --- */
+.top-search-container {
+    max-width: 600px;
+    margin: 20px auto 40px auto;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.search-form {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    background-color: var(--card-bg-color);
+    border-radius: 8px;
+    padding: 8px 15px;
+    border: 1px solid var(--border-color);
+}
+.search-form .fa-google { color: var(--google-icon-color); font-size: 1.2rem; }
+.search-form input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-color);
+    font-size: 1.1rem;
+    padding: 8px 12px;
+}
+.search-form input::placeholder { color: var(--text-muted-color); }
+.manage-btn {
+    background-color: var(--card-bg-color);
+    color: var(--text-muted-color);
+    border: 1px solid var(--border-color);
+    text-decoration: none;
+    height: 52px;
+    width: 52px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.manage-btn:hover {
+    color: var(--text-color);
+    background-color: var(--card-hover-bg-color);
+}
+/* Styles pour le bouton thème supprimé */
+
+
+/* --- GRILLE CSS POUR LES DASHBOARDS --- */
+
+#dashboards-wrapper {
+    max-width: 1200px; /* Ou votre largeur max souhaitée */
+    margin: 0 auto;
+    min-height: 500px; /* Pour éviter l'effondrement lors du rechargement */
+}
+
+.dashboard-grid {
+    display: grid;
+    /* Ajustez minmax(Xpx, ...) pour la largeur minimale/maximale d'une colonne (tuile) */
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    /* grid-auto-rows: minmax(100px, auto); */ /* Hauteur auto ou fixe si besoin */
+    gap: 15px; /* Espace entre les tuiles */
+    padding: 10px;
+}
+
+.dashboard-item {
+    background-color: var(--card-bg-color);
+    backdrop-filter: blur(5px);
+    border-radius: 12px;
+    border: 2px solid var(--border-color);
+    color: var(--text-color);
+    overflow: hidden; /* Cache le contenu qui dépasse */
+    position: relative; /* Pour positionner status/latency */
+    cursor: grab; /* Indique qu'on peut déplacer */
+    transition: background-color 0.2s ease, border-color 0.3s ease;
+
+    /* Pour InteractJS */
+    touch-action: none; /* Important pour éviter conflit scroll/drag sur mobile */
+    box-sizing: border-box;
+
+    /* Hauteur minimale par défaut (sera ajustée par size-class ou interact.js) */
+    min-height: 120px;
+
+    /* --- Styles internes de la tuile (adaptés depuis .grid-stack-item-content) --- */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 15px; /* Ajouter un padding interne */
+}
+
+.dashboard-item.online { border-color: var(--status-online); }
+.dashboard-item.offline { border-color: var(--status-offline); }
+
+.dashboard-item:hover {
+    background-color: var(--card-hover-bg-color);
+}
+
+/* Classes pour différentes tailles (gérées par BDD/JS) */
+.dashboard-item.size-small {
+    min-height: 100px;
+    /* grid-column: span 1; */
+    /* grid-row: span 1; */
+}
+.dashboard-item.size-medium {
+    min-height: 120px; /* Valeur par défaut */
+    /* grid-column: span 1; */
+    /* grid-row: span 1; */
+}
+.dashboard-item.size-large {
+    min-height: 150px;
+    grid-column: span 2; /* Occupe deux colonnes de la grille CSS */
+    /* grid-row: span 2; */ /* Optionnel: occuper deux lignes */
+}
+
+
+/* Contenu à l'intérieur de la tuile */
+.dashboard-item-content {
+    /* Ce conteneur n'est peut-être plus nécessaire si .dashboard-item est le flex container */
+    /* S'il est gardé, il doit permettre au contenu de s'afficher */
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.dashboard-item.custom-color {
+    background-color: var(--card-bg-color-custom);
+    color: #fff; /* Assurer contraste */
+}
+.dashboard-item.custom-color:hover {
+    filter: brightness(1.2);
+    background-color: var(--card-bg-color-custom); /* Garder la couleur au survol */
+}
+
+/* Le lien à l'intérieur de la carte */
+.card-link {
+    text-decoration: none;
+    color: inherit;
+    display: contents; /* Permet au contenu d'être flex-boxé par le parent */
+}
+
+.card-icon { font-size: 3.5rem; margin-bottom: 15px; }
+.card-title {
+    font-size: 1rem;
+    font-weight: 500;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: auto; /* Pousse le titre vers le bas si l'icône prend moins de place */
+}
+.loading-message { text-align: center; font-size: 1.2rem; padding: 20px; }
+
+.card-status {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--border-color);
+    transition: background-color 0.3s ease;
+}
+.dashboard-item.online .card-status { background-color: var(--status-online); }
+.dashboard-item.offline .card-status { background-color: var(--status-offline); }
+.card-status.checking { animation: pulse 1.5s infinite ease-in-out; }
+
+.card-latency {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted-color);
+}
+
+.card-icon .card-icon-custom {
+    max-width: 64px;
+    max-height: 64px;
+    object-fit: contain;
+}
+
+/* Styles pour interact.js (redimensionnement) */
+.dashboard-item.interact-resizable {
+    /* Optionnel: Ajouter des styles visuels pendant le redimensionnement */
+}
+/* Style pour les poignées (si interact.js ne les crée pas ou si vous voulez les personnaliser) */
+/* Exemple: coin inférieur droit */
+.resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 15px;
+    height: 15px;
+    background: rgba(255,255,255,0.2);
+    border-top: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
+    border-bottom-right-radius: 8px;
+    cursor: nwse-resize;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+.dashboard-item:hover .resize-handle {
+    opacity: 1;
+}
+
+/* --- Animations --- */
+@keyframes pulse {
+    0% { transform: scale(0.9); opacity: 0.7; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+
+/* --- Styles pour la modale de gestion (inchangés) --- */
+.modal-container {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: var(--bg-color);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    width: 90%;
+    max-width: 950px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0; /* Empêche le header de rétrécir */
+}
+.modal-header h1 { margin: 0; font-size: 1.6rem; }
+
+.close-modal-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted-color);
+    font-size: 2.2rem;
+    font-weight: 300;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+.close-modal-btn:hover { color: var(--text-color); }
+
+/* Styles pour les onglets de la modale */
+.modal-tabs {
+    display: flex;
+    padding: 10px 25px 0 25px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0; /* Empêche les onglets de rétrécir */
+}
+.modal-tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted-color);
+    padding: 15px 20px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px; /* Pour que la bordure touche la bordure principale */
+}
+.modal-tab-btn:hover {
+    color: var(--text-color);
+}
+.modal-tab-btn.active {
+    color: var(--status-online);
+    border-bottom-color: var(--status-online);
+    font-weight: 600;
+}
+.modal-tab-content {
+    display: none;
+    padding: 25px; /* Padding déplacé ici */
+}
+.modal-tab-content.active {
+    display: block;
+}
+
+.modal-body {
+    overflow-y: auto;
+}
+
+.modal-body section {
+    background-color: rgba(0,0,0,0.1);
+    border-radius: 12px;
+    padding: 25px;
+    border: 1px solid var(--border-color);
+}
+.modal-body section:not(:last-child){
+    margin-bottom: 25px;
+}
+
+
+.modal-body h2 { color: var(--text-color); margin-top: 0; margin-bottom: 20px; }
+.modal-body h3 { margin-top: 30px; }
+
+table { width: 100%; border-collapse: collapse; margin-bottom: 20px;}
+th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); }
+thead { background-color: rgba(0,0,0,0.1); }
+tbody tr:hover { background-color: var(--card-hover-bg-color); }
+td.actions { display: flex; gap: 10px; align-items: center; }
+td a { color: var(--text-color); }
+
+.form-group { margin-bottom: 15px; }
+label { display: block; margin-bottom: 5px; font-weight: 500; }
+input[type="text"], input[type="url"], input[type="number"], input[type="file"], input[type="color"], select, textarea {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 1rem;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+input[type="file"] { padding: 9px; }
+input[type="color"] { padding: 5px; height: 48px; width: 60px; } /* Taille ajustée pour color */
+
+
+input[type="text"]:focus, input[type="url"]:focus, input[type="number"]:focus, input[type="file"]:focus, input[type="color"]:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--status-online);
+    box-shadow: 0 0 0 3px rgba(72, 187, 120, 0.3);
+}
+
+textarea { min-height: 80px; resize: vertical; }
+.form-actions { margin-top: 20px; display: flex; gap: 15px; align-items: center; }
+
+.submit-btn, .edit-btn, .delete-btn, .cancel-btn {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: opacity 0.2s ease;
+}
+.submit-btn:hover, .edit-btn:hover, .delete-btn:hover, .cancel-btn:hover { opacity: 0.85; }
+
+.submit-btn { background-color: var(--status-online); color: #fff; }
+.edit-btn { background-color: #3182ce; color: #fff; display: inline-block; }
+.delete-btn { background-color: var(--status-offline); color: #fff; }
+.cancel-btn { background-color: #718096; color: #fff; }
+
+.current-icon-preview {
+    max-width: 24px;
+    max-height: 24px;
+    vertical-align: middle;
+    margin-right: 10px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+}
