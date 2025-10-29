@@ -1,3 +1,9 @@
 config/config.php
 composer.phar
 /vendor/
+
+# Dossier pour les icônes personnalisées uploadées
+/public/assets/uploads/
+
+# NOUVEAU: Dossier pour les favicons mises en cache
+/public/assets/favicons/
