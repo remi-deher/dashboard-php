@@ -46,27 +46,9 @@ class ServiceModel
 
     public function create(array $data): void
     {
+        // AJOUT DE widget_type
         $stmt = $this->pdo->prepare(
-            'INSERT INTO services (nom, url, icone, description, groupe, ordre_affichage, dashboard_id, icone_url, card_color, size_class) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $stmt->execute([
-            $data['nom'],
-            $data['url'],
-            $data['icone'] ?? null,
-            $data['description'] ?? null,
-            $data['groupe'] ?? 'Général',
-            $data['ordre_affichage'] ?? 0,
-            $data['dashboard_id'],
-            $data['icone_url'] ?? null,
-            $data['card_color'] ?? null,
-            $data['size_class'] ?? 'size-medium'
-        ]);
-    }
-
-    public function update(int $id, array $data): void
-    {
-        $stmt = $this->pdo->prepare(
-            'UPDATE services SET nom = ?, url = ?, icone = ?, description = ?, groupe = ?, ordre_affichage = ?, dashboard_id = ?, icone_url = ?, card_color = ?, size_class = ? WHERE id = ?'
+            'INSERT INTO services (nom, url, icone, description, groupe, ordre_affichage, dashboard_id, icone_url, card_color, size_class, widget_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $data['nom'],
@@ -79,6 +61,28 @@ class ServiceModel
             $data['icone_url'] ?? null,
             $data['card_color'] ?? null,
             $data['size_class'] ?? 'size-medium',
+            $data['widget_type'] ?? 'link' // AJOUTÉ
+        ]);
+    }
+
+    public function update(int $id, array $data): void
+    {
+        // AJOUT DE widget_type
+        $stmt = $this->pdo->prepare(
+            'UPDATE services SET nom = ?, url = ?, icone = ?, description = ?, groupe = ?, ordre_affichage = ?, dashboard_id = ?, icone_url = ?, card_color = ?, size_class = ?, widget_type = ? WHERE id = ?'
+        );
+        $stmt->execute([
+            $data['nom'],
+            $data['url'],
+            $data['icone'] ?? null,
+            $data['description'] ?? null,
+            $data['groupe'] ?? 'Général',
+            $data['ordre_affichage'] ?? 0,
+            $data['dashboard_id'],
+            $data['icone_url'] ?? null,
+            $data['card_color'] ?? null,
+            $data['size_class'] ?? 'size-medium',
+            $data['widget_type'] ?? 'link', // AJOUTÉ
             $id
         ]);
     }
@@ -136,7 +140,6 @@ class ServiceModel
 
     /**
      * Réassigne tous les services d'un dashboard vers un autre.
-     * Utilisé lors de la suppression d'un dashboard.
      */
     public function reassignServices(int $fromDashboardId, int $toDashboardId): bool
     {

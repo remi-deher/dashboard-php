@@ -583,3 +583,54 @@ textarea { min-height: 80px; resize: vertical; }
     transform: scale(1.05);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
 }
+
+/* --- Styles pour les WIDGETS --- */
+.widget-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 10px; /* Padding interne pour le contenu du widget */
+    box-sizing: border-box;
+}
+
+/* Styles spécifiques au widget Xen Orchestra */
+.xen-widget ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0 5px;
+    text-align: left;
+    font-size: 0.95rem;
+}
+.xen-widget li {
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 500;
+}
+.xen-widget .value {
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+/* Statuts des VM */
+.xen-widget .running .value {
+    color: var(--status-online);
+    background-color: rgba(72, 187, 120, 0.15);
+}
+.xen-widget .halted .value {
+    color: var(--status-offline);
+    background-color: rgba(245, 101, 101, 0.15);
+}
+.xen-widget .total .value {
+    color: var(--text-color);
+    background-color: rgba(128, 128, 128, 0.2);
+}
+.xen-widget .widget-error {
+    font-size: 0.9rem;
+    color: var(--status-offline);
+    font-weight: 500;
+}

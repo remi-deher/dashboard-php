@@ -4,30 +4,33 @@
 namespace App\Controller;
 
 use App\Model\ServiceModel;
-use App\Model\DashboardModel; // AJOUTÉ
+use App\Model\DashboardModel;
+use App\Service\XenOrchestraService; // AJOUTÉ
 use PDO;
 
 class ApiController
 {
     private ServiceModel $serviceModel;
-    private DashboardModel $dashboardModel; // AJOUTÉ
-    private PDO $pdo; // Gardé pour checkStatus (cURL) pour l'instant
+    private DashboardModel $dashboardModel;
+    private XenOrchestraService $xenOrchestraService; // AJOUTÉ
+    private PDO $pdo; 
 
     public function __construct(
         ServiceModel $serviceModel, 
-        DashboardModel $dashboardModel, // AJOUTÉ
-        PDO $pdo
+        DashboardModel $dashboardModel, 
+        PDO $pdo,
+        XenOrchestraService $xenOrchestraService // AJOUTÉ
     ) {
         $this->serviceModel = $serviceModel;
-        $this->dashboardModel = $dashboardModel; // AJOUTÉ
+        $this->dashboardModel = $dashboardModel;
         $this->pdo = $pdo;
+        $this->xenOrchestraService = $xenOrchestraService; // AJOUTÉ
     }
 
     public function getDashboards(): void
     {
         header('Content-Type: application/json');
         try {
-            // UTILISATION DU MODÈLE
             $dashboards = $this->dashboardModel->getAllForTabs();
             echo json_encode($dashboards); 
         } catch (\Exception $e) {
@@ -37,12 +40,11 @@ class ApiController
     }
 
     public function getServices(): void {
-        // ... (cette méthode n'utilisait que ServiceModel, donc elle ne change pas) ...
         header('Content-Type: application/json');
         $dashboardId = filter_input(INPUT_GET, 'dashboard_id', FILTER_VALIDATE_INT);
 
         if ($dashboardId === false || $dashboardId <= 0) {
-            http_response_code(400); // Bad Request
+            http_response_code(400);
             echo json_encode(['error' => 'ID de dashboard invalide ou manquant.']);
             return;
         }
@@ -61,7 +63,8 @@ class ApiController
                     'description'     => $service['description'],
                     'card_color'      => $service['card_color'],
                     'ordre_affichage' => $service['ordre_affichage'] ?? 0, 
-                    'size_class'      => $service['size_class'] ?? 'size-medium' 
+                    'size_class'      => $service['size_class'] ?? 'size-medium',
+                    'widget_type'     => $service['widget_type'] ?? 'link' // AJOUTÉ
                 ];
             }
             echo json_encode($output_services);
@@ -70,9 +73,43 @@ class ApiController
             echo json_encode(['error' => 'Impossible de récupérer les services.', 'details' => $e->getMessage()]);
         }
     }
+    
+    // --- NOUVELLE MÉTHODE POUR LES DONNÉES DE WIDGET ---
+    public function getWidgetData(int $id): void
+    {
+        header('Content-Type: application/json');
+        try {
+            $service = $this->serviceModel->getById($id);
+            if (!$service) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Service non trouvé.']);
+                return;
+            }
+
+            $data = [];
+            switch ($service['widget_type']) {
+                case 'xen_orchestra':
+                    $data = $this->xenOrchestraService->getVmStats();
+                    break;
+                // case 'o365_calendar':
+                //     $data = $this->graphApiService->getCalendarEvents();
+                //     break;
+                default:
+                    $data = ['error' => 'Type de widget non supporté'];
+                    break;
+            }
+            
+            echo json_encode($data);
+
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Erreur interne du serveur.', 'details' => $e->getMessage()]);
+        }
+    }
+    // ---------------------------------------------
 
     public function checkStatus(): void {
-        // ... (cette méthode ne change pas, elle fait du cURL) ...
+        // ... (inchangé)
         header('Content-Type: application/json');
         $url = filter_input(INPUT_GET, 'url', FILTER_VALIDATE_URL);
         if (!$url) {
@@ -80,7 +117,6 @@ class ApiController
             echo json_encode(['status' => 'error', 'message' => 'URL invalide ou manquante.']);
             return;
         }
-
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -94,10 +130,8 @@ class ApiController
         curl_setopt($ch, CURLOPT_TIMEVALUE, time());
         curl_setopt($ch, CURLOPT_NOPROGRESS, false);
         curl_setopt($ch, CURLOPT_HEADER, true); 
-
         $response = curl_exec($ch);
         $error_no = curl_errno($ch);
-
         if ($error_no !== 0) {
             curl_close($ch);
             echo json_encode([
@@ -108,18 +142,13 @@ class ApiController
             ]);
             return;
         }
-
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $connect_time_us = curl_getinfo($ch, CURLINFO_CONNECT_TIME_T);
         $starttransfer_time_us = curl_getinfo($ch, CURLINFO_STARTTRANSFER_TIME_T); 
-
         curl_close($ch);
-
         $connect_time_ms = round($connect_time_us / 1000);
         $ttfb_ms = round($starttransfer_time_us / 1000);
-
         $is_online = ($http_code >= 200 && $http_code < 400);
-
         echo json_encode([
             'status' => $is_online ? 'online' : 'offline',
             'connect_time' => $connect_time_ms,
@@ -127,24 +156,22 @@ class ApiController
         ]);
     }
 
-    public function saveServiceSize(int $id): void {
-        // ... (cette méthode n'utilisait que ServiceModel, donc elle ne change pas) ...
+    public function saveServiceSize(int $id): void
+    {
+        // ... (inchangé)
         header('Content-Type: application/json');
         $data = json_decode(file_get_contents('php://input'), true);
-
         if (json_last_error() !== JSON_ERROR_NONE || !isset($data['sizeClass']) || !is_string($data['sizeClass'])) {
             http_response_code(400);
             echo json_encode(['error' => 'Données JSON invalides ou classe de taille manquante/invalide.']);
             return;
         }
-
         $allowedSizes = ['size-small', 'size-medium', 'size-large']; 
         if (!in_array($data['sizeClass'], $allowedSizes)) {
             http_response_code(400);
             echo json_encode(['error' => 'Classe de taille non autorisée.']);
             return;
         }
-
         try {
             $this->serviceModel->updateSizeClass($id, $data['sizeClass']);
             echo json_encode(['success' => true]);
@@ -156,25 +183,21 @@ class ApiController
     }
 
     public function saveLayout(): void {
-        // ... (cette méthode n'utilisait que ServiceModel, donc elle ne change pas) ...
+        // ... (inchangé)
         header('Content-Type: application/json');
         $input = json_decode(file_get_contents('php://input'), true);
-
         if (json_last_error() !== JSON_ERROR_NONE || !isset($input['dashboardId']) || !isset($input['ids']) || !is_array($input['ids'])) {
             http_response_code(400);
             echo json_encode(['error' => 'Données JSON invalides ou manquantes.']);
             return;
         }
-
         $dashboardId = (int)$input['dashboardId'];
         $orderedIds = array_map('intval', $input['ids']);
-
         if ($dashboardId <= 0) {
              http_response_code(400);
              echo json_encode(['error' => 'ID de dashboard invalide.']);
              return;
         }
-
         try {
             $this->serviceModel->updateOrderForDashboard($dashboardId, $orderedIds);
             echo json_encode(['success' => true]);
@@ -187,17 +210,15 @@ class ApiController
     }
 
     public function saveDashboardLayout(): void {
+        // ... (inchangé)
         header('Content-Type: application/json');
         $dashboardIds = json_decode(file_get_contents('php://input'), true);
-
         if (json_last_error() !== JSON_ERROR_NONE || !is_array($dashboardIds)) {
             http_response_code(400);
             echo json_encode(['error' => 'Données JSON invalides (attendu un tableau d\'IDs).']);
             return;
         }
-
         try {
-            // UTILISATION DU MODÈLE
             $this->dashboardModel->updateOrder($dashboardIds);
             echo json_encode(['success' => true]);
         } catch (\Exception $e) {
@@ -209,15 +230,13 @@ class ApiController
     }
 
     public function moveService(int $id, int $dashboardId): void {
-        // ... (cette méthode n'utilisait que ServiceModel, donc elle ne change pas) ...
+        // ... (inchangé)
         header('Content-Type: application/json');
-
         if ($id <= 0 || $dashboardId <= 0) {
             http_response_code(400);
             echo json_encode(['error' => 'ID de service ou de dashboard invalide.']);
             return;
         }
-
         try {
             $this->serviceModel->updateDashboardId($id, $dashboardId);
             echo json_encode(['success' => true]);

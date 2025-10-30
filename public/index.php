@@ -1,22 +1,22 @@
 <?php
 // Fichier: /public/index.php
 
-// Afficher les erreurs pour le développement (à désactiver en production)
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 // 1. Chargement de l'autoloader et de la connexion PDO
 require_once __DIR__ . '/../vendor/autoload.php';
-// Gérer l'absence du fichier de configuration proprement
 $configPath = __DIR__ . '/../config/config.php';
 if (!file_exists($configPath)) {
     die("Erreur: Le fichier de configuration 'config/config.php' est manquant. Veuillez copier 'config/config.php.EXAMPLE' et le configurer.");
 }
+// CHARGER LA CONFIGURATION pour qu'elle soit disponible
+$config = require $configPath; 
+
 require_once __DIR__ . '/../src/db_connection.php'; // Injecte $pdo
 
-// Vérifier si la connexion PDO a réussi
 if (!isset($pdo)) {
-     die("Erreur critique: La connexion PDO n'a pas pu être établie. Vérifiez votre configuration et l'état du serveur de base de données.");
+     die("Erreur critique: La connexion PDO n'a pas pu être établie.");
 }
 
 
@@ -28,28 +28,33 @@ use App\Model\ServiceModel;
 use App\Model\DashboardModel;
 use App\Model\SettingsModel;
 use App\Service\MediaManager;
+use App\Service\XenOrchestraService; // AJOUTÉ
 use App\Router;
 
 // 3. Initialisation des services (injection de dépendances)
 try {
-    // Définir la racine du projet
     $projectRoot = dirname(__DIR__);
 
-    // Instancier tous nos modèles
+    // Modèles
     $serviceModel = new ServiceModel($pdo);
     $dashboardModel = new DashboardModel($pdo);
     $settingsModel = new SettingsModel($pdo);
     
-    // Instancier nos services
+    // Services
     $mediaManager = new MediaManager($projectRoot);
+    // AJOUTÉ : Instancier le service XOA avec la config
+    $xenOrchestraService = new XenOrchestraService(
+        $config['api_keys']['xen_orchestra_host'] ?? null,
+        $config['api_keys']['xen_orchestra_token'] ?? null
+    );
 
-    // Injecter les modèles/services nécessaires dans chaque contrôleur
-    $apiController = new ApiController($serviceModel, $dashboardModel, $pdo); 
+    // Contrôleurs
+    // AJOUTÉ : Injecter le service XOA dans ApiController
+    $apiController = new ApiController($serviceModel, $dashboardModel, $pdo, $xenOrchestraService); 
     $dashboardController = new DashboardController($serviceModel, $dashboardModel, $settingsModel); 
     $adminController = new AdminController($serviceModel, $dashboardModel, $settingsModel, $mediaManager);
 
 } catch (\Exception $e) {
-    // Gérer les erreurs potentielles lors de l'instanciation
     die("Erreur lors de l'initialisation des services: " . $e->getMessage());
 }
 
@@ -57,41 +62,31 @@ try {
 $router = new Router();
 
 // 5. Définition des routes
-
-// --- Routes principales pour l'affichage HTML ---
-$router->add('GET', '/', [$dashboardController, 'index']); // Page d'accueil
-// Routes pour pré-ouvrir la modale en mode édition
+$router->add('GET', '/', [$dashboardController, 'index']); 
 $router->add('GET', '/service/edit/{id}', [$dashboardController, 'showAdminForService']);
 $router->add('GET', '/dashboard/edit/{id}', [$dashboardController, 'showAdminForDashboard']);
 
+// API
+$router->add('GET', '/api/dashboards', [$apiController, 'getDashboards']); 
+$router->add('GET', '/api/services', [$apiController, 'getServices']); 
+$router->add('GET', '/api/status/check', [$apiController, 'checkStatus']); 
 
-// --- Routes de l'API (appelées par JavaScript via fetch) ---
-$router->add('GET', '/api/dashboards', [$apiController, 'getDashboards']); // Récupérer la liste des dashboards
-$router->add('GET', '/api/services', [$apiController, 'getServices']); // Récupérer les services d'un dashboard (avec ?dashboard_id=X)
-$router->add('GET', '/api/status/check', [$apiController, 'checkStatus']); // Vérifier le statut d'une URL (avec ?url=Y)
+// API - NOUVELLE ROUTE WIDGET
+$router->add('GET', '/api/widget/data/{id}', [$apiController, 'getWidgetData']);
 
-// Routes POST pour la sauvegarde de la disposition (depuis SortableJS/InteractJS)
-$router->add('POST', '/api/services/layout/save', [$apiController, 'saveLayout']); // Sauvegarder l'ordre des services DANS un dashboard
-$router->add('POST', '/api/dashboards/layout/save', [$apiController, 'saveDashboardLayout']); // Sauvegarder l'ordre des onglets dashboards
-
-// Route POST pour la taille d'un service (depuis InteractJS)
+// API (POST)
+$router->add('POST', '/api/services/layout/save', [$apiController, 'saveLayout']); 
+$router->add('POST', '/api/dashboards/layout/save', [$apiController, 'saveDashboardLayout']); 
 $router->add('POST', '/api/service/resize/{id}', [$apiController, 'saveServiceSize']);
-
-// Route POST pour déplacer un service vers un autre dashboard (depuis SortableJS onAdd)
 $router->add('POST', '/api/service/move/{id}/{dashboardId}', [$apiController, 'moveService']);
 
-
-// --- Routes pour les actions des formulaires de gestion (méthode POST depuis HTML) ---
-// (Gérées par AdminController)
-// Services
+// Formulaires (POST)
 $router->add('POST', '/service/add', [$adminController, 'addService']);
 $router->add('POST', '/service/update/{id}', [$adminController, 'updateService']);
 $router->add('POST', '/service/delete/{id}', [$adminController, 'deleteService']);
-// Dashboards
 $router->add('POST', '/dashboard/add', [$adminController, 'addDashboard']);
 $router->add('POST', '/dashboard/update/{id}', [$adminController, 'updateDashboard']);
 $router->add('POST', '/dashboard/delete/{id}', [$adminController, 'deleteDashboard']);
-// Paramètres globaux
 $router->add('POST', '/settings/save', [$adminController, 'saveSettings']);
 
 
@@ -99,8 +94,7 @@ $router->add('POST', '/settings/save', [$adminController, 'saveSettings']);
 try {
     $router->run();
 } catch (\Exception $e) {
-    // Attrape les erreurs non gérées par le routeur lui-même (ex: erreur fatale dans un contrôleur)
     http_response_code(500);
     error_log("Unhandled Exception: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-    echo "Une erreur interne inattendue est survenue."; // Message générique pour l'utilisateur
+    echo "Une erreur interne inattendue est survenue."; 
 }

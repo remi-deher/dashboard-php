@@ -1,9 +1,5 @@
 <?php
 // Fichier: /templates/partials/_modal_manage.php
-// La modale de gestion complète (roue crantée)
-// Note: les variables $all_dashboards, $all_services, $edit_service, 
-// $edit_dashboard, $settings sont disponibles car ce fichier est
-// "require" depuis la méthode index() du contrôleur.
 ?>
 <div id="settings-modal" class="modal-container" style="display: none;">
     <div class="modal-content">
@@ -52,7 +48,6 @@
                         <input type="hidden" name="id" value="<?= htmlspecialchars($edit_dashboard['id'] ?? '') ?>">
                         <input type="text" name="nom" placeholder="Nom du dashboard" value="<?= htmlspecialchars($edit_dashboard['nom'] ?? '') ?>" required>
                         <input type="text" name="icone" placeholder="Icône Font Awesome (ex: fas fa-home)" value="<?= htmlspecialchars($edit_dashboard['icone'] ?? 'fas fa-th-large') ?>">
-
                         <div class="form-group">
                             <label>...ou téléverser une icône personnalisée</label>
                             <?php if (!empty($edit_dashboard['icone_url'])): ?>
@@ -61,7 +56,6 @@
                             <?php endif; ?>
                             <input type="file" name="icone_upload" accept="image/png, image/jpeg, image/svg+xml, image/webp">
                         </div>
-
                         <input type="hidden" name="ordre_affichage" value="<?= htmlspecialchars($edit_dashboard['ordre_affichage'] ?? '9999') ?>">
                         <button type="submit" class="submit-btn"><?= $edit_dashboard ? 'Mettre à jour' : 'Ajouter' ?></button>
                         <?php if ($edit_dashboard): ?><a href="/" class="cancel-btn">Annuler</a><?php endif; ?>
@@ -86,11 +80,13 @@
                                         <i class="fas fa-link"></i>
                                     <?php endif; ?>
                                     <?= htmlspecialchars($service['nom']) ?>
+                                    <?php if($service['widget_type'] !== 'link'): ?>
+                                        <small style="color: var(--text-muted-color); font-size: 0.8em; display: block; margin-left: 28px;">(Widget: <?= htmlspecialchars($service['widget_type']) ?>)</small>
+                                    <?php endif; ?>
                                 </td>
                                 <td><?= htmlspecialchars($service['groupe'] ?? 'Général') ?></td>
                                 <td>
                                     <?php
-                                    // Trouver le nom du dashboard correspondant à l'ID
                                     $dashboardName = 'N/A';
                                     foreach($all_dashboards as $d) {
                                         if($d['id'] == $service['dashboard_id']) {
@@ -112,9 +108,22 @@
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+                    
                     <h3><?= $edit_service ? 'Modifier le service' : 'Ajouter un service' ?></h3>
                     <form method="post" action="<?= $edit_service ? '/service/update/' . $edit_service['id'] : '/service/add' ?>" enctype="multipart/form-data">
                         <input type="hidden" name="id" value="<?= htmlspecialchars($edit_service['id'] ?? '') ?>">
+
+                        <div class="form-group">
+                            <label>Type de service</label>
+                            <select name="widget_type">
+                                <option value="link" <?= !isset($edit_service['widget_type']) || $edit_service['widget_type'] === 'link' ? 'selected' : '' ?>>
+                                    Lien simple (avec statut)
+                                </option>
+                                <option value="xen_orchestra" <?= $edit_service['widget_type'] === 'xen_orchestra' ? 'selected' : '' ?>>
+                                    Widget Xen Orchestra
+                                </option>
+                            </select>
+                        </div>
 
                         <div class="form-group">
                             <label>Dashboard</label>
@@ -130,11 +139,15 @@
                             </select>
                         </div>
                         <div class="form-group"><label>Nom</label><input type="text" name="nom" value="<?= htmlspecialchars($edit_service['nom'] ?? '') ?>" required></div>
-                        <div class="form-group"><label>URL</label><input type="url" name="url" value="<?= htmlspecialchars($edit_service['url'] ?? '') ?>" required></div>
+                        <div class="form-group">
+                            <label>URL</label>
+                            <input type="url" name="url" value="<?= htmlspecialchars($edit_service['url'] ?? '') ?>" required>
+                            <small>Pour les liens, c'est la cible. Pour les widgets (XOA), c'est l'URL pour le statut (ping).</small>
+                        </div>
                         <div class="form-group"><label>Icône Font Awesome</label><input type="text" name="icone" value="<?= htmlspecialchars($edit_service['icone'] ?? '') ?>" placeholder="ex: fas fa-server"></div>
                         <div class="form-group">
                             <label>...ou téléverser une icône personnalisée</label>
-                            <?php if (!empty($edit_service['icone_url']) && strpos($edit_service['icone_url'], '/assets/uploads/') === 0): /* N'afficher que si c'est un upload */ ?>
+                            <?php if (!empty($edit_service['icone_url']) && strpos($edit_service['icone_url'], '/assets/uploads/') === 0): ?>
                                 <img src="<?= htmlspecialchars($edit_service['icone_url']) ?>" alt="Icône actuelle" class="current-icon-preview">
                                 <label><input type="checkbox" name="remove_icone"> Supprimer l'icône actuelle</label>
                             <?php elseif (!empty($edit_service['icone_url'])): ?>
@@ -142,11 +155,9 @@
                                  <small>(Favicon détectée)</small>
                             <?php endif; ?>
                             <input type="file" name="icone_upload" accept="image/png, image/jpeg, image/svg+xml, image/webp">
-                            <small>Si aucun des deux n'est fourni, la favicon du site sera utilisée.</small>
+                            <small>Si aucun des deux n'est fourni, la favicon du site sera utilisée (pour les liens).</small>
                         </div>
-
                         <div class="form-group"><label>Couleur personnalisée</label> <input type="color" name="card_color" value="<?= htmlspecialchars($edit_service['card_color'] ?? '#ffffff') ?>"> </div>
-
                         <input type="hidden" name="size_class" value="<?= htmlspecialchars($edit_service['size_class'] ?? 'size-medium') ?>">
                         <div class="form-group"><label>Groupe</label><input type="text" name="groupe" value="<?= htmlspecialchars($edit_service['groupe'] ?? 'Général') ?>"></div>
                         <input type="hidden" name="ordre_affichage" value="<?= htmlspecialchars($edit_service['ordre_affichage'] ?? '0') ?>">
@@ -184,7 +195,6 @@
                             <input type="text" id="background_color" name="background_color" value="<?= htmlspecialchars($settings['background_color'] ?? '') ?>" placeholder="ex: #161b22 ou linear-gradient(...)">
                             <small>Surcharge la couleur de fond du thème si défini.</small>
                         </div>
-
                         <div class="form-group">
                             <label for="background_image">Image de fond</label>
                             <?php if (!empty($settings['background_image'])): ?>
@@ -194,7 +204,6 @@
                             <input type="file" id="background_image" name="background_image" accept="image/png, image/jpeg, image/webp">
                              <small>Surcharge l'image de fond du thème si défini.</small>
                         </div>
-
                         <div class="form-actions">
                             <button type="submit" class="submit-btn">Enregistrer</button>
                         </div>

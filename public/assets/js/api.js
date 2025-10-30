@@ -2,12 +2,10 @@
 
 /**
  * Gestion centralisée des erreurs de fetch
- * @param {Response} response 
- * @returns 
  */
 function handleFetchError(response) {
     if (!response.ok) {
-        throw new Error(`HTTP error ${response.status}`);
+        return response.json().then(err => Promise.reject(err));
     }
     return response.json();
 }
@@ -35,6 +33,16 @@ function apiGetServices(dashboardId) {
     return fetch(`/api/services?dashboard_id=${dashboardId}`)
         .then(handleFetchError);
 }
+
+// --- NOUVELLE FONCTION ---
+/**
+ * Récupère les données d'un widget
+ */
+function apiGetWidgetData(serviceId) {
+    return fetch(`/api/widget/data/${serviceId}`)
+        .then(handleFetchError);
+}
+// -------------------------
 
 /**
  * Sauvegarde l'ordre des services d'un dashboard

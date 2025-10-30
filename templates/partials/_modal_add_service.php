@@ -10,19 +10,28 @@
                 <input type="hidden" name="dashboard_id" id="quick-add-service-dashboard-id" value="">
                 
                 <div class="form-group">
+                    <label>Type de service</label>
+                    <select name="widget_type">
+                        <option value="link" selected>Lien simple (avec statut)</option>
+                        <option value="xen_orchestra">Widget Xen Orchestra</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
                     <label>Nom du service</label>
                     <input type="text" name="nom" placeholder="ex: Mon Serveur" required>
                 </div>
                 <div class="form-group">
                     <label>URL</label>
                     <input type="url" name="url" placeholder="https://..." required>
+                    <small>Pour les liens, c'est la cible. Pour les widgets (XOA), c'est l'URL pour le statut (ping).</small>
                 </div>
                 <div class="form-group">
                     <label>Icône Font Awesome (optionnel)</label>
                     <input type="text" name="icone" placeholder="ex: fas fa-server">
-                    <small>Si laissé vide, une favicon sera recherchée.</small>
+                    <small>Si laissé vide, une favicon sera recherchée (pour les liens).</small>
                 </div>
-                
+                     
                 <div class="form-actions">
                     <button type="submit" class="submit-btn">Ajouter</button>
                 </div>

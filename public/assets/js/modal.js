@@ -21,6 +21,19 @@ function initModals(elements) {
 
     // 1. Modale de GESTION (la grande)
     if (settingsModal && openModalBtn && closeModalBtn) {
+
+        // --- DÉBUT DE LA CORRECTION ---
+        // Sélectionner les onglets A L'INTÉRIEUR de la modale de gestion
+        const modalTabs = settingsModal.querySelectorAll('.modal-tab-btn'); 
+        
+        // Ajouter l'écouteur de clic manquant
+        modalTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                showModalTab(tab.dataset.tab);
+            });
+        });
+        // --- FIN DE LA CORRECTION ---
+
         openModalBtn.addEventListener('click', () => {
             settingsModal.style.display = 'flex';
             if (!window.location.pathname.includes('/edit/')) {
@@ -62,9 +75,6 @@ function initModals(elements) {
 
     // 3. Modale AJOUT DASHBOARD (Onglet +)
     if (addDashboardTabBtn && quickAddDashboardModal && closeQuickAddDashboardModal) {
-        // Note: Le bouton lui-même est créé dynamiquement dans dashboard.js,
-        // mais nous attachons le listener au conteneur au cas où.
-        // Mieux : nous l'attachons à l'élément passé en paramètre.
         addDashboardTabBtn.addEventListener('click', () => {
             quickAddDashboardModal.style.display = 'flex';
             quickAddDashboardModal.querySelector('input[name="nom"]').focus();

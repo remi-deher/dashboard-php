@@ -8,6 +8,9 @@ CREATE TABLE services (
     ordre_affichage INT DEFAULT 0
 );
 
+ALTER TABLE services 
+ADD COLUMN widget_type VARCHAR(50) DEFAULT 'link';
+
 CREATE TABLE dashboards (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nom VARCHAR(255) NOT NULL,
