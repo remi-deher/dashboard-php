@@ -23,16 +23,33 @@ if (!isset($pdo)) {
 // 2. Utilisation des namespaces pour les classes
 use App\Controller\ApiController;
 use App\Controller\DashboardController;
+use App\Controller\AdminController;
 use App\Model\ServiceModel;
+use App\Model\DashboardModel;
+use App\Model\SettingsModel;
+use App\Service\MediaManager;
 use App\Router;
 
 // 3. Initialisation des services (injection de dépendances)
 try {
+    // Définir la racine du projet
+    $projectRoot = dirname(__DIR__);
+
+    // Instancier tous nos modèles
     $serviceModel = new ServiceModel($pdo);
-    $apiController = new ApiController($serviceModel); // ApiController a besoin de ServiceModel
-    $dashboardController = new DashboardController($serviceModel, $pdo); // DashboardController a besoin des deux
+    $dashboardModel = new DashboardModel($pdo);
+    $settingsModel = new SettingsModel($pdo);
+    
+    // Instancier nos services
+    $mediaManager = new MediaManager($projectRoot);
+
+    // Injecter les modèles/services nécessaires dans chaque contrôleur
+    $apiController = new ApiController($serviceModel, $dashboardModel, $pdo); 
+    $dashboardController = new DashboardController($serviceModel, $dashboardModel, $settingsModel); 
+    $adminController = new AdminController($serviceModel, $dashboardModel, $settingsModel, $mediaManager);
+
 } catch (\Exception $e) {
-    // Gérer les erreurs potentielles lors de l'instanciation (ex: problème de BDD)
+    // Gérer les erreurs potentielles lors de l'instanciation
     die("Erreur lors de l'initialisation des services: " . $e->getMessage());
 }
 
@@ -54,27 +71,28 @@ $router->add('GET', '/api/services', [$apiController, 'getServices']); // Récup
 $router->add('GET', '/api/status/check', [$apiController, 'checkStatus']); // Vérifier le statut d'une URL (avec ?url=Y)
 
 // Routes POST pour la sauvegarde de la disposition (depuis SortableJS/InteractJS)
-$router->add('POST', '/api/services/layout/save', [$dashboardController, 'saveLayout']); // Sauvegarder l'ordre des services DANS un dashboard
-$router->add('POST', '/api/dashboards/layout/save', [$dashboardController, 'saveDashboardLayout']); // Sauvegarder l'ordre des onglets dashboards
+$router->add('POST', '/api/services/layout/save', [$apiController, 'saveLayout']); // Sauvegarder l'ordre des services DANS un dashboard
+$router->add('POST', '/api/dashboards/layout/save', [$apiController, 'saveDashboardLayout']); // Sauvegarder l'ordre des onglets dashboards
 
-// *** NOUVELLE ROUTE *** : Sauvegarder la taille d'un service (depuis InteractJS)
+// Route POST pour la taille d'un service (depuis InteractJS)
 $router->add('POST', '/api/service/resize/{id}', [$apiController, 'saveServiceSize']);
 
 // Route POST pour déplacer un service vers un autre dashboard (depuis SortableJS onAdd)
-$router->add('POST', '/api/service/move/{id}/{dashboardId}', [$dashboardController, 'moveService']);
+$router->add('POST', '/api/service/move/{id}/{dashboardId}', [$apiController, 'moveService']);
 
 
 // --- Routes pour les actions des formulaires de gestion (méthode POST depuis HTML) ---
+// (Gérées par AdminController)
 // Services
-$router->add('POST', '/service/add', [$dashboardController, 'addService']);
-$router->add('POST', '/service/update/{id}', [$dashboardController, 'updateService']);
-$router->add('POST', '/service/delete/{id}', [$dashboardController, 'deleteService']);
+$router->add('POST', '/service/add', [$adminController, 'addService']);
+$router->add('POST', '/service/update/{id}', [$adminController, 'updateService']);
+$router->add('POST', '/service/delete/{id}', [$adminController, 'deleteService']);
 // Dashboards
-$router->add('POST', '/dashboard/add', [$dashboardController, 'addDashboard']);
-$router->add('POST', '/dashboard/update/{id}', [$dashboardController, 'updateDashboard']);
-$router->add('POST', '/dashboard/delete/{id}', [$dashboardController, 'deleteDashboard']);
+$router->add('POST', '/dashboard/add', [$adminController, 'addDashboard']);
+$router->add('POST', '/dashboard/update/{id}', [$adminController, 'updateDashboard']);
+$router->add('POST', '/dashboard/delete/{id}', [$adminController, 'deleteDashboard']);
 // Paramètres globaux
-$router->add('POST', '/settings/save', [$dashboardController, 'saveSettings']);
+$router->add('POST', '/settings/save', [$adminController, 'saveSettings']);
 
 
 // 6. Lancement du routeur

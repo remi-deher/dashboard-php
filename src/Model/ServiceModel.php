@@ -30,7 +30,6 @@ class ServiceModel
     public function getAllByDashboardId(int $dashboardId): array
     {
         $stmt = $this->pdo->prepare(
-            // *** MODIFIÉ ICI *** : Tri par ordre_affichage
             'SELECT * FROM services WHERE dashboard_id = ? ORDER BY ordre_affichage, nom'
         );
         $stmt->execute([$dashboardId]);
@@ -47,7 +46,6 @@ class ServiceModel
 
     public function create(array $data): void
     {
-        // *** MODIFIÉ ICI *** : Ajout de size_class, retrait des gs_*
         $stmt = $this->pdo->prepare(
             'INSERT INTO services (nom, url, icone, description, groupe, ordre_affichage, dashboard_id, icone_url, card_color, size_class) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
@@ -61,13 +59,12 @@ class ServiceModel
             $data['dashboard_id'],
             $data['icone_url'] ?? null,
             $data['card_color'] ?? null,
-            $data['size_class'] ?? 'size-medium' // Ajouté
+            $data['size_class'] ?? 'size-medium'
         ]);
     }
 
     public function update(int $id, array $data): void
     {
-         // *** MODIFIÉ ICI *** : Ajout de size_class, retrait des gs_*
         $stmt = $this->pdo->prepare(
             'UPDATE services SET nom = ?, url = ?, icone = ?, description = ?, groupe = ?, ordre_affichage = ?, dashboard_id = ?, icone_url = ?, card_color = ?, size_class = ? WHERE id = ?'
         );
@@ -81,7 +78,7 @@ class ServiceModel
             $data['dashboard_id'],
             $data['icone_url'] ?? null,
             $data['card_color'] ?? null,
-            $data['size_class'] ?? 'size-medium', // Ajouté
+            $data['size_class'] ?? 'size-medium',
             $id
         ]);
     }
@@ -94,12 +91,9 @@ class ServiceModel
 
     /**
      * Met à jour uniquement le dashboard_id d'un service.
-     * L'ordre sera mis à jour via une autre méthode (saveLayout).
      */
     public function updateDashboardId(int $serviceId, int $dashboardId): void
     {
-        // On pourrait optionnellement mettre ordre_affichage à 0 ou MAX+1 ici,
-        // mais la sauvegarde explicite de l'ordre via saveLayout est plus fiable.
         $stmt = $this->pdo->prepare(
             'UPDATE services SET dashboard_id = ? WHERE id = ?'
         );
@@ -108,8 +102,6 @@ class ServiceModel
 
     /**
      * Met à jour l'ordre d'affichage des services pour un dashboard spécifique.
-     * @param int $dashboardId L'ID du dashboard concerné.
-     * @param array $orderedIds Tableau des IDs de service dans le nouvel ordre.
      */
     public function updateOrderForDashboard(int $dashboardId, array $orderedIds): void
     {
@@ -119,7 +111,6 @@ class ServiceModel
                 'UPDATE services SET ordre_affichage = ? WHERE id = ? AND dashboard_id = ?'
             );
             foreach ($orderedIds as $index => $serviceId) {
-                // Assurer que les IDs sont des entiers
                 $serviceId = (int)$serviceId;
                 if ($serviceId > 0) {
                     $stmt->execute([$index, $serviceId, $dashboardId]);
@@ -128,15 +119,12 @@ class ServiceModel
             $this->pdo->commit();
         } catch (\Exception $e) {
             $this->pdo->rollBack();
-            // Loguer ou relancer l'exception
             throw $e;
         }
     }
 
      /**
       * Met à jour la classe de taille d'un service spécifique.
-      * @param int $serviceId L'ID du service.
-      * @param string $sizeClass La nouvelle classe CSS (ex: 'size-small').
       */
      public function updateSizeClass(int $serviceId, string $sizeClass): void
      {
@@ -145,4 +133,16 @@ class ServiceModel
          );
          $stmt->execute([$sizeClass, $serviceId]);
      }
+
+    /**
+     * Réassigne tous les services d'un dashboard vers un autre.
+     * Utilisé lors de la suppression d'un dashboard.
+     */
+    public function reassignServices(int $fromDashboardId, int $toDashboardId): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE services SET dashboard_id = ? WHERE dashboard_id = ?'
+        );
+        return $stmt->execute([$toDashboardId, $fromDashboardId]);
+    }
 }
