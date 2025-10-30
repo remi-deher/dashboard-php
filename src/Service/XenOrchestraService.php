@@ -48,6 +48,10 @@ class XenOrchestraService
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
             curl_setopt($ch, CURLOPT_TIMEOUT, 10);
             
+            // --- CORRECTION AJOUTÉE ---
+            // Suivre les redirections (comme celles du reverse proxy)
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            
             // Nécessaire si votre XOA utilise un certificat auto-signé
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
@@ -58,12 +62,15 @@ class XenOrchestraService
             curl_close($ch);
 
             if ($http_code !== 200) {
+                // Si l'erreur est toujours 302, c'est que la redirection a échoué
                 return ['error' => "Erreur API XOA: HTTP {$http_code} - {$error}"];
             }
 
             $data = json_decode($response, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                return ['error' => 'Réponse JSON XOA invalide.'];
+                // Si vous revoyez "Unexpected token '<'", c'est que la redirection
+                // mène à une page de connexion HTML, et non à l'API.
+                return ['error' => 'Réponse JSON XOA invalide. La redirection mène-t-elle à une page HTML ?'];
             }
 
             if (isset($data['error'])) {

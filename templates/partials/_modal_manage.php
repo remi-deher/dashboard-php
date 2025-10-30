@@ -119,7 +119,8 @@
                                 <option value="link" <?= !isset($edit_service['widget_type']) || $edit_service['widget_type'] === 'link' ? 'selected' : '' ?>>
                                     Lien simple (avec statut)
                                 </option>
-                                <option value="xen_orchestra" <?= $edit_service['widget_type'] === 'xen_orchestra' ? 'selected' : '' ?>>
+                                
+                                <option value="xen_orchestra" <?= (isset($edit_service['widget_type']) && $edit_service['widget_type'] === 'xen_orchestra') ? 'selected' : '' ?>>
                                     Widget Xen Orchestra
                                 </option>
                             </select>
