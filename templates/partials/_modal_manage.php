@@ -11,6 +11,7 @@
         <div class="modal-tabs">
             <button class="modal-tab-btn active" data-tab="tab-dashboards">Dashboards</button>
             <button class="modal-tab-btn" data-tab="tab-services">Services</button>
+            <button class="modal-tab-btn" data-tab="tab-widget">Widgets</button>
             <button class="modal-tab-btn" data-tab="tab-settings">Paramètres</button>
         </div>
 
@@ -120,9 +121,20 @@
                                     Lien simple (avec statut)
                                 </option>
                                 
-                                <option value="xen_orchestra" <?= (isset($edit_service['widget_type']) && $edit_service['widget_type'] === 'xen_orchestra') ? 'selected' : '' ?>>
-                                    Widget Xen Orchestra
+                                <?php // Liste des widgets
+                                $widgets = [
+                                    'xen_orchestra' => 'Widget Xen Orchestra',
+                                    'glances' => 'Widget Glances',
+                                    'proxmox' => 'Widget Proxmox',
+                                    'portainer' => 'Widget Portainer',
+                                    // Ajoutez d'autres widgets ici
+                                ];
+                                
+                                foreach ($widgets as $type => $label): ?>
+                                <option value="<?= $type ?>" <?= (isset($edit_service['widget_type']) && $edit_service['widget_type'] === $type) ? 'selected' : '' ?>>
+                                    <?= $label ?>
                                 </option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
 
@@ -143,7 +155,7 @@
                         <div class="form-group">
                             <label>URL</label>
                             <input type="url" name="url" value="<?= htmlspecialchars($edit_service['url'] ?? '') ?>" required>
-                            <small>Pour les liens, c'est la cible. Pour les widgets (XOA), c'est l'URL pour le statut (ping).</small>
+                            <small>Pour les liens, c'est la cible. Pour les widgets (Glances, Proxmox...), c'est l'URL de l'hôte/API (ex: http://192.168.1.50:61208).</small>
                         </div>
                         <div class="form-group"><label>Icône Font Awesome</label><input type="text" name="icone" value="<?= htmlspecialchars($edit_service['icone'] ?? '') ?>" placeholder="ex: fas fa-server"></div>
                         <div class="form-group">
@@ -167,6 +179,50 @@
                         <div class="form-actions">
                             <button type="submit" class="submit-btn"><?= $edit_service ? 'Mettre à jour' : 'Ajouter' ?></button>
                             <?php if ($edit_service): ?><a href="/" class="cancel-btn">Annuler</a><?php endif; ?>
+                        </div>
+                    </form>
+                </section>
+            </div>
+
+            <div id="tab-widget" class="modal-tab-content">
+                <section>
+                    <h2>Paramètres des Widgets</h2>
+                    <form id="widget-settings-form" method="post" action="/settings/save" enctype="multipart/form-data">
+                        
+                        <h3>Xen Orchestra</h3>
+                        <div class="form-group">
+                            <label for="xen_orchestra_host">Hôte XOA</label>
+                            <input type="text" id="xen_orchestra_host" name="xen_orchestra_host" value="<?= htmlspecialchars($settings['xen_orchestra_host'] ?? '') ?>" placeholder="https://mon-xoa.domaine.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="xen_orchestra_token">Token d'API XOA</label>
+                            <input type="password" id="xen_orchestra_token" name="xen_orchestra_token" value="<?= htmlspecialchars($settings['xen_orchestra_token'] ?? '') ?>" placeholder="Collez votre token ici">
+                            <small>Créez un token dans votre profil XOA (User > My account > API tokens).</small>
+                        </div>
+                        
+                        <hr style="border-color: var(--border-color); margin: 25px 0;">
+                        
+                        <h3>Proxmox</h3>
+                        <div class="form-group">
+                            <label for="proxmox_token_id">Token ID Proxmox</label>
+                            <input type="text" id="proxmox_token_id" name="proxmox_token_id" value="<?= htmlspecialchars($settings['proxmox_token_id'] ?? '') ?>" placeholder="utilisateur@pve!mon-token">
+                        </div>
+                        <div class="form-group">
+                            <label for="proxmox_token_secret">Token Secret Proxmox</label>
+                            <input type="password" id="proxmox_token_secret" name="proxmox_token_secret" value="<?= htmlspecialchars($settings['proxmox_token_secret'] ?? '') ?>" placeholder="UUID (ex: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)">
+                        </div>
+                        
+                        <hr style="border-color: var(--border-color); margin: 25px 0;">
+
+                        <h3>Portainer</h3>
+                        <div class="form-group">
+                            <label for="portainer_api_key">Clé d'API Portainer</label>
+                            <input type="password" id="portainer_api_key" name="portainer_api_key" value="<?= htmlspecialchars($settings['portainer_api_key'] ?? '') ?>" placeholder="Collez votre clé d'API Portainer ici">
+                            <small>Créez une clé dans Portainer (User > My account > API tokens).</small>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="submit-btn">Enregistrer les Paramètres Widgets</button>
                         </div>
                     </form>
                 </section>
@@ -205,59 +261,14 @@
                             <input type="file" id="background_image" name="background_image" accept="image/png, image/jpeg, image/webp">
                              <small>Surcharge l'image de fond du thème si défini.</small>
                         </div>
-                        </form>
-                </section>
-                
-                <section>
-                    <h2>Paramètres des Widgets</h2>
-                    <form id="widget-settings-form" method="post" action="/settings/save" enctype="multipart/form-data">
-                        <h3>Xen Orchestra</h3>
-                        <div class="form-group">
-                            <label for="xen_orchestra_host">Hôte XOA</label>
-                            <input type="text" id="xen_orchestra_host" name="xen_orchestra_host" value="<?= htmlspecialchars($settings['xen_orchestra_host'] ?? '') ?>" placeholder="https://mon-xoa.domaine.com">
-                        </div>
-                        <div class="form-group">
-                            <label for="xen_orchestra_token">Token d'API XOA</label>
-                            <input type="password" id="xen_orchestra_token" name="xen_orchestra_token" value="<?= htmlspecialchars($settings['xen_orchestra_token'] ?? '') ?>" placeholder="Collez votre token ici">
-                            <small>Créez un token dans votre profil XOA (User > My account > API tokens). Le token n'est sauvegardé que s'il est modifié.</small>
-                        </div>
                         
                         <div class="form-actions">
-                            <button type="submit" class="submit-btn">Enregistrer les Paramètres</button>
+                            <button type="submit" class="submit-btn">Enregistrer les Paramètres Généraux</button>
                         </div>
                     </form>
                 </section>
-                </div>
+            </div>
 
         </div>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var mainForm = document.getElementById('widget-settings-form');
-    var generalForm = document.getElementById('settings-form');
-    
-    if (mainForm && generalForm) {
-        mainForm.addEventListener('submit', function(e) {
-            // Récupérer tous les champs de l'autre formulaire (général)
-            var inputs = generalForm.querySelectorAll('input, select, textarea');
-            inputs.forEach(function(input) {
-                if (input.name) {
-                    // Créer un champ caché dans le formulaire principal (widget)
-                    var hidden = document.createElement('input');
-                    hidden.type = 'hidden';
-                    hidden.name = input.name;
-                    // Gérer les cases à cocher
-                    if (input.type === 'checkbox') {
-                        hidden.value = input.checked ? 'on' : ''; // 'on' si coché
-                    } else {
-                        hidden.value = input.value;
-                    }
-                    mainForm.appendChild(hidden);
-                }
-            });
-        });
-    }
-});
-</script>

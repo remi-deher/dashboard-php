@@ -10,17 +10,13 @@ $configPath = __DIR__ . '/../config/config.php';
 if (!file_exists($configPath)) {
     die("Erreur: Le fichier de configuration 'config/config.php' est manquant. Veuillez copier 'config/config.php.EXAMPLE' et le configurer.");
 }
-// CHARGER LA CONFIGURATION pour qu'elle soit disponible
 $config = require $configPath; 
-
-require_once __DIR__ . '/../src/db_connection.php'; // Injecte $pdo
-
+require_once __DIR__ . '/../src/db_connection.php';
 if (!isset($pdo)) {
      die("Erreur critique: La connexion PDO n'a pas pu être établie.");
 }
 
-
-// 2. Utilisation des namespaces pour les classes
+// 2. Utilisation des namespaces
 use App\Controller\ApiController;
 use App\Controller\DashboardController;
 use App\Controller\AdminController;
@@ -28,10 +24,13 @@ use App\Model\ServiceModel;
 use App\Model\DashboardModel;
 use App\Model\SettingsModel;
 use App\Service\MediaManager;
-use App\Service\XenOrchestraService; // AJOUTÉ
+use App\Service\WidgetServiceRegistry; // AJOUTÉ
+use App\Service\XenOrchestraService;
+use App\Service\Widget\GlancesService; // AJOUTÉ
+// (Ajoutez ici les futurs services : ProxmoxService, PortainerService, etc.)
 use App\Router;
 
-// 3. Initialisation des services (injection de dépendances)
+// 3. Initialisation des services
 try {
     $projectRoot = dirname(__DIR__);
 
@@ -40,23 +39,51 @@ try {
     $dashboardModel = new DashboardModel($pdo);
     $settingsModel = new SettingsModel($pdo);
     
-    // --- MODIFICATION ICI ---
-    // Récupérer les paramètres de la BDD pour l'injection
+    // Récupérer les paramètres de la BDD
     $db_settings = $settingsModel->getAllAsKeyPair();
-    // --- FIN MODIFICATION ---
     
     // Services
     $mediaManager = new MediaManager($projectRoot);
+
+    // --- NOUVELLE ARCHITECTURE WIDGET ---
     
-    // MODIFIÉ : Instancier le service XOA avec les identifiants de la BDD
+    // 3a. Initialiser le registre
+    $widgetRegistry = new WidgetServiceRegistry();
+
+    // 3b. Initialiser et enregistrer chaque service de widget
+    
+    // Xen Orchestra
     $xenOrchestraService = new XenOrchestraService(
         $db_settings['xen_orchestra_host'] ?? null,
         $db_settings['xen_orchestra_token'] ?? null
     );
+    $widgetRegistry->register('xen_orchestra', $xenOrchestraService);
 
-    // Contrôleurs
-    // AJOUTÉ : Injecter le service XOA dans ApiController
-    $apiController = new ApiController($serviceModel, $dashboardModel, $pdo, $xenOrchestraService); 
+    // Glances (AJOUTÉ)
+    // Glances n'a pas besoin de config globale, il utilise l'URL du service
+    $glancesService = new GlancesService(); 
+    $widgetRegistry->register('glances', $glancesService);
+
+    /*
+    // Squelette pour Proxmox (quand vous le créerez)
+    $proxmoxService = new ProxmoxService(
+        $db_settings['proxmox_token_id'] ?? null,
+        $db_settings['proxmox_token_secret'] ?? null
+    );
+    $widgetRegistry->register('proxmox', $proxmoxService);
+    
+    // Squelette pour Portainer (quand vous le créerez)
+    $portainerService = new PortainerService(
+        $db_settings['portainer_api_key'] ?? null
+    );
+    $widgetRegistry->register('portainer', $portainerService);
+    */
+
+    // 3c. Contrôleurs
+    
+    // MODIFIÉ : On injecte le registre, et non plus $xenOrchestraService
+    $apiController = new ApiController($serviceModel, $dashboardModel, $pdo, $widgetRegistry); 
+    
     $dashboardController = new DashboardController($serviceModel, $dashboardModel, $settingsModel); 
     $adminController = new AdminController($serviceModel, $dashboardModel, $settingsModel, $mediaManager);
 
@@ -64,29 +91,21 @@ try {
     die("Erreur lors de l'initialisation des services: " . $e->getMessage());
 }
 
-// 4. Création du routeur
+// 4. Création du routeur (inchangé)
 $router = new Router();
 
-// 5. Définition des routes
+// 5. Définition des routes (inchangé)
 $router->add('GET', '/', [$dashboardController, 'index']); 
 $router->add('GET', '/service/edit/{id}', [$dashboardController, 'showAdminForService']);
 $router->add('GET', '/dashboard/edit/{id}', [$dashboardController, 'showAdminForDashboard']);
-
-// API
 $router->add('GET', '/api/dashboards', [$apiController, 'getDashboards']); 
 $router->add('GET', '/api/services', [$apiController, 'getServices']); 
 $router->add('GET', '/api/status/check', [$apiController, 'checkStatus']); 
-
-// API - NOUVELLE ROUTE WIDGET
 $router->add('GET', '/api/widget/data/{id}', [$apiController, 'getWidgetData']);
-
-// API (POST)
 $router->add('POST', '/api/services/layout/save', [$apiController, 'saveLayout']); 
 $router->add('POST', '/api/dashboards/layout/save', [$apiController, 'saveDashboardLayout']); 
 $router->add('POST', '/api/service/resize/{id}', [$apiController, 'saveServiceSize']);
 $router->add('POST', '/api/service/move/{id}/{dashboardId}', [$apiController, 'moveService']);
-
-// Formulaires (POST)
 $router->add('POST', '/service/add', [$adminController, 'addService']);
 $router->add('POST', '/service/update/{id}', [$adminController, 'updateService']);
 $router->add('POST', '/service/delete/{id}', [$adminController, 'deleteService']);
@@ -95,8 +114,7 @@ $router->add('POST', '/dashboard/update/{id}', [$adminController, 'updateDashboa
 $router->add('POST', '/dashboard/delete/{id}', [$adminController, 'deleteDashboard']);
 $router->add('POST', '/settings/save', [$adminController, 'saveSettings']);
 
-
-// 6. Lancement du routeur
+// 6. Lancement du routeur (inchangé)
 try {
     $router->run();
 } catch (\Exception $e) {

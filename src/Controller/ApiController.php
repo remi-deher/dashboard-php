@@ -1,30 +1,31 @@
 <?php
-// Fichier: /src/Controller/ApiController.php (Corrigé avec ob_clean)
+// Fichier: /src/Controller/ApiController.php
 
 namespace App\Controller;
 
 use App\Model\ServiceModel;
 use App\Model\DashboardModel;
-use App\Service\XenOrchestraService;
+use App\Service\WidgetServiceRegistry; // MODIFIÉ
 use PDO;
 
 class ApiController
 {
+    // --- FIX : AJOUT DES DÉCLARATIONS DE PROPRIÉTÉS ---
     private ServiceModel $serviceModel;
     private DashboardModel $dashboardModel;
-    private XenOrchestraService $xenOrchestraService;
+    private WidgetServiceRegistry $widgetRegistry; // MODIFIÉ
     private PDO $pdo; 
 
     public function __construct(
         ServiceModel $serviceModel, 
         DashboardModel $dashboardModel, 
         PDO $pdo,
-        XenOrchestraService $xenOrchestraService
+        WidgetServiceRegistry $widgetRegistry // MODIFIÉ
     ) {
         $this->serviceModel = $serviceModel;
         $this->dashboardModel = $dashboardModel;
         $this->pdo = $pdo;
-        $this->xenOrchestraService = $xenOrchestraService;
+        $this->widgetRegistry = $widgetRegistry; // MODIFIÉ
     }
 
     // --- Fonction utilitaire pour envoyer du JSON proprement ---
@@ -33,14 +34,12 @@ class ApiController
         http_response_code($http_code);
         header('Content-Type: application/json');
         
-        // CORRECTION ROBUSTE : Nettoie tout ce qui a pu être imprimé (Warnings, Notices)
-        // avant d'envoyer notre JSON.
         if (ob_get_level() > 0) {
             ob_clean();
         }
         
         echo json_encode($data);
-        exit; // Termine le script
+        exit;
     }
     // -----------------------------------------------------------
 
@@ -87,6 +86,9 @@ class ApiController
         }
     }
     
+    /**
+     * MODIFIÉ : Cette fonction utilise maintenant le WidgetServiceRegistry
+     */
     public function getWidgetData(int $id): void
     {
         try {
@@ -97,22 +99,22 @@ class ApiController
             }
 
             $data = [];
+            $widgetType = $service['widget_type'] ?? 'link'; 
             
-            // CORRECTION SPÉCIFIQUE : Gère le cas où widget_type est NULL
-            $widgetType = $service['widget_type'] ?? null; 
-            
-            switch ($widgetType) {
-                case 'xen_orchestra':
-                    $data = $this->xenOrchestraService->getVmStats();
-                    break;
-                case 'link':
-                case null: // Les liens simples ou les anciens services n'ont pas de données de widget
-                    $data = ['error' => 'Ce service est un lien, il n\'a pas de données de widget.'];
-                    break;
-                default:
-                    $data = ['error' => 'Type de widget non supporté'];
-                    break;
+            // --- NOUVELLE LOGIQUE ---
+            if ($widgetType === 'link') {
+                $data = ['error' => 'Ce service est un lien, il n\'a pas de données de widget.'];
+            } else {
+                $widgetService = $this->widgetRegistry->getService($widgetType);
+                
+                if ($widgetService) {
+                    // On passe la config du service (qui contient l'URL) au widget
+                    $data = $widgetService->getWidgetData($service);
+                } else {
+                    $data = ['error' => "Type de widget '{$widgetType}' non supporté ou non enregistré."];
+                }
             }
+            // --- FIN NOUVELLE LOGIQUE ---
             
             $this->sendJsonResponse($data);
 
@@ -129,7 +131,6 @@ class ApiController
             return;
         }
 
-        // ... (logique cURL inchangée) ...
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -240,4 +241,5 @@ class ApiController
             $this->sendJsonResponse(['error' => 'Erreur lors du déplacement du service.'], 500);
         }
     }
+    
 }

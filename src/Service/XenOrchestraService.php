@@ -3,7 +3,11 @@
 
 namespace App\Service;
 
-class XenOrchestraService
+// AJOUTÉ
+use App\Service\Widget\WidgetInterface;
+
+// MODIFIÉ : implémente l'interface
+class XenOrchestraService implements WidgetInterface
 {
     private string $host;
     private string $token;
@@ -15,19 +19,22 @@ class XenOrchestraService
     }
 
     /**
+     * MODIFIÉ : Renommé de getVmStats à getWidgetData
      * Appelle l'API JSON-RPC de Xen Orchestra pour obtenir les stats de VM.
+     * @param array $service (Non utilisé ici, car XOA utilise la config globale)
      * @return array
      */
-    public function getVmStats(): array
+    public function getWidgetData(array $service): array
     {
         if (empty($this->host) || empty($this->token)) {
-            return ['error' => 'Xen Orchestra n\'est pas configuré dans config.php'];
+            return ['error' => 'Xen Orchestra n\'est pas configuré'];
         }
 
+        // L'hôte utilisé est celui des paramètres, pas celui du service
         $apiUrl = rtrim($this->host, '/') . '/api/jsonrpc';
         $payload = json_encode([
             "jsonrpc" => "2.0",
-            "method" => "vm.getAllRecords", // Récupère toutes les VM
+            "method" => "vm.getAllRecords",
             "params" => [],
             "id" => 1
         ]);
@@ -35,7 +42,7 @@ class XenOrchestraService
         $headers = [
             'Content-Type: application/json',
             'Content-Length: ' . strlen($payload),
-            'Authorization: Bearer ' . $this->token // Authentification
+            'Authorization: Bearer ' . $this->token
         ];
 
         try {
@@ -47,12 +54,7 @@ class XenOrchestraService
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
             curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-            
-            // --- CORRECTION AJOUTÉE ---
-            // Suivre les redirections (comme celles du reverse proxy)
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            
-            // Nécessaire si votre XOA utilise un certificat auto-signé
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
 
@@ -62,22 +64,18 @@ class XenOrchestraService
             curl_close($ch);
 
             if ($http_code !== 200) {
-                // Si l'erreur est toujours 302, c'est que la redirection a échoué
                 return ['error' => "Erreur API XOA: HTTP {$http_code} - {$error}"];
             }
 
             $data = json_decode($response, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                // Si vous revoyez "Unexpected token '<'", c'est que la redirection
-                // mène à une page de connexion HTML, et non à l'API.
-                return ['error' => 'Réponse JSON XOA invalide. La redirection mène-t-elle à une page HTML ?'];
+                return ['error' => 'Réponse JSON XOA invalide.'];
             }
 
             if (isset($data['error'])) {
                 return ['error' => "Erreur XOA: " . $data['error']['message']];
             }
 
-            // Calculer les statistiques
             return $this->parseVmRecords($data['result'] ?? []);
 
         } catch (\Exception $e) {
@@ -101,7 +99,7 @@ class XenOrchestraService
 
         foreach ($vms as $vm) {
             if ($vm['is_a_template'] || $vm['is_a_snapshot']) {
-                $stats['total']--; // Ne pas compter les templates/snapshots
+                $stats['total']--;
                 continue;
             }
 

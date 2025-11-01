@@ -6,26 +6,27 @@ namespace App\Controller;
 use App\Model\ServiceModel;
 use App\Model\DashboardModel;
 use App\Model\SettingsModel;
-use App\Service\MediaManager; // AJOUTÉ
+use App\Service\MediaManager;
 
 class AdminController
 {
+    // --- FIX : AJOUT DES DÉCLARATIONS DE PROPRIÉTÉS ---
     private ServiceModel $serviceModel;
     private DashboardModel $dashboardModel;
     private SettingsModel $settingsModel;
-    private MediaManager $mediaManager; // AJOUTÉ
+    private MediaManager $mediaManager;
 
     // CONSTRUCTEUR MIS À JOUR
     public function __construct(
         ServiceModel $serviceModel,
         DashboardModel $dashboardModel,
         SettingsModel $settingsModel,
-        MediaManager $mediaManager // AJOUTÉ
+        MediaManager $mediaManager
     ) {
         $this->serviceModel = $serviceModel;
         $this->dashboardModel = $dashboardModel;
         $this->settingsModel = $settingsModel;
-        $this->mediaManager = $mediaManager; // AJOUTÉ
+        $this->mediaManager = $mediaManager;
     }
 
     // --- Méthodes pour les actions POST (Formulaires) ---
@@ -135,15 +136,11 @@ class AdminController
     }
 
     public function saveSettings(): void {
+        // Paramètres généraux
         $this->settingsModel->save('background_color', $_POST['background_color'] ?? '');
-
-        // Gestion de l'image de fond
         $current_image = $this->settingsModel->get('background_image');
-        // UTILISATION DU SERVICE
         $image_url = $this->mediaManager->handleUpload('background_image', $current_image ?: null, isset($_POST['remove_background_image']));
         $this->settingsModel->save('background_image', $image_url);
-
-        // Sauvegarde du thème sélectionné
         if (isset($_POST['theme'])) {
             $themeName = basename($_POST['theme']); 
             $themePath = dirname(__DIR__, 2) . '/public/assets/themes/' . $themeName;
@@ -152,16 +149,32 @@ class AdminController
             }
         }
         
-        // Sauvegarde des paramètres XOA
+        // --- SECTION WIDGETS MISE À JOUR ---
+        
+        // Xen Orchestra
         if (isset($_POST['xen_orchestra_host'])) {
             $this->settingsModel->save('xen_orchestra_host', $_POST['xen_orchestra_host']);
         }
-        // Ne sauvegarde le token que s'il n'est pas vide (pour éviter d'écraser avec un champ "password" vide)
         if (!empty($_POST['xen_orchestra_token'])) {
             $this->settingsModel->save('xen_orchestra_token', $_POST['xen_orchestra_token']);
         }
 
+        // Proxmox (AJOUTÉ)
+        if (isset($_POST['proxmox_token_id'])) {
+            $this->settingsModel->save('proxmox_token_id', $_POST['proxmox_token_id']);
+        }
+        if (!empty($_POST['proxmox_token_secret'])) {
+            $this->settingsModel->save('proxmox_token_secret', $_POST['proxmox_token_secret']);
+        }
+        
+        // Portainer (AJOUTÉ)
+        if (!empty($_POST['portainer_api_key'])) {
+            $this->settingsModel->save('portainer_api_key', $_POST['portainer_api_key']);
+        }
+        // --- FIN SECTION WIDGETS ---
+
         header('Location: /');
         exit;
     }
+    
 }

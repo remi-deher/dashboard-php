@@ -14,7 +14,10 @@
                     <select name="widget_type">
                         <option value="link" selected>Lien simple (avec statut)</option>
                         <option value="xen_orchestra">Widget Xen Orchestra</option>
-                    </select>
+                        <option value="glances">Widget Glances</option>
+                        <option value="proxmox">Widget Proxmox</option>
+                        <option value="portainer">Widget Portainer</option>
+                        </select>
                 </div>
                 
                 <div class="form-group">
@@ -24,7 +27,7 @@
                 <div class="form-group">
                     <label>URL</label>
                     <input type="url" name="url" placeholder="https://..." required>
-                    <small>Pour les liens, c'est la cible. Pour les widgets (XOA), c'est l'URL pour le statut (ping).</small>
+                    <small>Pour les liens, c'est la cible. Pour les widgets (XOA, Glances, Proxmox...), c'est l'URL de l'hôte/API (ex: http://192.168.1.50:61208).</small>
                 </div>
                 <div class="form-group">
                     <label>Icône Font Awesome (optionnel)</label>
