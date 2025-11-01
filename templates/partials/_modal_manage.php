@@ -111,12 +111,12 @@
                     </table>
                     
                     <h3><?= $edit_service ? 'Modifier le service' : 'Ajouter un service' ?></h3>
-                    <form method="post" action="<?= $edit_service ? '/service/update/' . $edit_service['id'] : '/service/add' ?>" enctype="multipart/form-data">
+                    <form method="post" action="<?= $edit_service ? '/service/update/' . $edit_service['id'] : '/service/add' ?>" enctype="multipart/form-data" data-form="edit-service">
                         <input type="hidden" name="id" value="<?= htmlspecialchars($edit_service['id'] ?? '') ?>">
 
                         <div class="form-group">
                             <label>Type de service</label>
-                            <select name="widget_type">
+                            <select name="widget_type" data-role="widget-type-select">
                                 <option value="link" <?= !isset($edit_service['widget_type']) || $edit_service['widget_type'] === 'link' ? 'selected' : '' ?>>
                                     Lien simple (avec statut)
                                 </option>
@@ -175,7 +175,19 @@
                         <input type="hidden" name="size_class" value="<?= htmlspecialchars($edit_service['size_class'] ?? 'size-medium') ?>">
                         <div class="form-group"><label>Groupe</label><input type="text" name="groupe" value="<?= htmlspecialchars($edit_service['groupe'] ?? 'Général') ?>"></div>
                         <input type="hidden" name="ordre_affichage" value="<?= htmlspecialchars($edit_service['ordre_affichage'] ?? '0') ?>">
-                        <div class="form-group"><label>Description</label><textarea name="description"><?= htmlspecialchars($edit_service['description'] ?? '') ?></textarea></div>
+
+                        <div class="form-group" data-role="description-group">
+                            <label>Description</label>
+                            <textarea name="description"><?= htmlspecialchars($edit_service['description'] ?? '') ?></textarea>
+                            <small data-role="description-help-text">Pour les widgets M365, ce champ sera remplacé par un sélecteur.</small>
+                        </div>
+                        
+                        <div class="form-group" data-role="m365-target-group" style="display: none;">
+                            <label>Cible M365 (Utilisateur ou Groupe)</label>
+                            <select name="description">
+                                </select>
+                            <small>Liste des utilisateurs et groupes de votre tenant.</small>
+                        </div>
 
                         <div class="form-actions">
                             <button type="submit" class="submit-btn"><?= $edit_service ? 'Mettre à jour' : 'Ajouter' ?></button>
@@ -305,16 +317,137 @@
     </div>
 </div>
 
-<?php // Gérer l'ouverture de la modale après l'auth
-if ($settings['open_modal_to_widgets']): ?>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Ouvre la modale principale
-        document.getElementById('open-settings-modal').click();
-        // Bascule sur l'onglet "Widgets"
-        showModalTab('tab-widgets');
-        // Nettoie l'URL pour ne pas ré-ouvrir à chaque rechargement
-        window.history.pushState({}, '', '/');
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // --- FONCTIONS PARTAGÉES ---
+    
+    let m365TargetsCache = null; // Cache pour éviter les appels API multiples
+    let isFetching = false;
+
+    /**
+     * Appelle l'API pour lister les utilisateurs et groupes
+     */
+    function fetchM365Targets() {
+        if (m365TargetsCache) {
+            return Promise.resolve(m365TargetsCache);
+        }
+        if (isFetching) {
+            return new Promise(resolve => setTimeout(() => resolve(fetchM365Targets()), 100));
+        }
+        
+        isFetching = true;
+        return fetch('/api/m365/targets')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erreur de connexion M365. Vérifiez la connexion dans l\'onglet Widgets.');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                m365TargetsCache = data;
+                isFetching = false;
+                return data;
+            })
+            .catch(err => {
+                isFetching = false;
+                console.error(err);
+                return [{ name: err.message, email: '' }];
+            });
+    }
+
+    /**
+     * Gère l'affichage/masquage des champs
+     */
+    function toggleM365Selector(form, widgetType, currentValue) {
+        const descGroup = form.querySelector('[data-role="description-group"]');
+        const m365Group = form.querySelector('[data-role="m365-target-group"]');
+        
+        // Vérification cruciale que les éléments existent
+        if (!descGroup || !m365Group) return; 
+        
+        const m365Select = m365Group.querySelector('select');
+        const descTextarea = descGroup.querySelector('textarea');
+
+        if (widgetType.startsWith('m365_')) {
+            // C'est un widget M365
+            descGroup.style.display = 'none';
+            if (descTextarea) descTextarea.disabled = true; // Désactive le textarea
+            
+            m365Group.style.display = 'block';
+            if (m365Select) m365Select.disabled = false; // Active le select
+            
+            // Charge les données
+            if (m365Select) m365Select.innerHTML = '<option value="">Chargement...</option>';
+            fetchM365Targets().then(targets => {
+                if (!m365Select) return;
+                m365Select.innerHTML = ''; // Nettoie
+                if (targets.length === 0) {
+                     m365Select.innerHTML = '<option value="">Aucune cible trouvée</option>';
+                     return;
+                }
+                targets.forEach(target => {
+                    const isSelected = (target.email === currentValue);
+                    m365Select.innerHTML += `<option value="${target.email}" ${isSelected ? 'selected' : ''}>${target.name}</option>`;
+                });
+            });
+
+        } else {
+            // C'est un autre widget ou un lien
+            descGroup.style.display = 'block';
+            if (descTextarea) descTextarea.disabled = false;
+            
+            m365Group.style.display = 'none';
+            if (m365Select) m365Select.disabled = true;
+        }
+    }
+
+    /**
+     * Initialise la logique pour un formulaire donné (Add ou Edit)
+     */
+    function setupM365Selector(formElement) {
+        const typeSelect = formElement.querySelector('[data-role="widget-type-select"]');
+        const descriptionTextarea = formElement.querySelector('[data-role="description-group"] textarea');
+
+        if (!typeSelect || !descriptionTextarea) return;
+
+        // Attache l'écouteur de changement
+        typeSelect.addEventListener('change', function() {
+            toggleM365Selector(formElement, this.value, null);
+        });
+
+        // Vérifie l'état initial (important pour le formulaire d'édition)
+        const initialWidgetType = typeSelect.value;
+        const initialDescriptionValue = descriptionTextarea.value;
+        toggleM365Selector(formElement, initialWidgetType, initialDescriptionValue);
+    }
+
+    // --- INITIALISATION ---
+    
+    // Initialise le formulaire d'ÉDITION (dans la grande modale)
+    const editForm = document.querySelector('form[data-form="edit-service"]');
+    if (editForm) {
+        setupM365Selector(editForm);
+    }
+    
+    // Initialise le formulaire d'AJOUT RAPIDE (dans la modale FAB)
+    const quickAddForm = document.querySelector('form[data-form="quick-add"]');
+    if (quickAddForm) {
+        setupM365Selector(quickAddForm);
+    }
+
+    // (Bonus) Ré-initialise le sélecteur du formulaire d'ajout rapide quand on l'ouvre
+    const quickAddFab = document.getElementById('quick-add-service-fab');
+    if (quickAddFab && quickAddForm) {
+        quickAddFab.addEventListener('click', function() {
+            const typeSelect = quickAddForm.querySelector('[data-role="widget-type-select"]');
+            // Réinitialise au type 'link' et valeur vide
+            typeSelect.value = 'link'; 
+            toggleM365Selector(quickAddForm, 'link', null);
+        });
+    }
+});
 </script>
-<?php endif; ?>

@@ -5,30 +5,32 @@ namespace App\Controller;
 
 use App\Model\ServiceModel;
 use App\Model\DashboardModel;
-use App\Service\WidgetServiceRegistry; // MODIFIÉ
+use App\Service\WidgetServiceRegistry;
+use App\Service\MicrosoftGraphService; // AJOUTÉ
 use PDO;
 
 class ApiController
 {
-    // --- FIX : AJOUT DES DÉCLARATIONS DE PROPRIÉTÉS ---
     private ServiceModel $serviceModel;
     private DashboardModel $dashboardModel;
-    private WidgetServiceRegistry $widgetRegistry; // MODIFIÉ
+    private WidgetServiceRegistry $widgetRegistry;
     private PDO $pdo; 
+    private MicrosoftGraphService $microsoftGraphService; // AJOUTÉ
 
     public function __construct(
         ServiceModel $serviceModel, 
         DashboardModel $dashboardModel, 
         PDO $pdo,
-        WidgetServiceRegistry $widgetRegistry // MODIFIÉ
+        WidgetServiceRegistry $widgetRegistry,
+        MicrosoftGraphService $microsoftGraphService // AJOUTÉ
     ) {
         $this->serviceModel = $serviceModel;
         $this->dashboardModel = $dashboardModel;
         $this->pdo = $pdo;
-        $this->widgetRegistry = $widgetRegistry; // MODIFIÉ
+        $this->widgetRegistry = $widgetRegistry;
+        $this->microsoftGraphService = $microsoftGraphService; // AJOUTÉ
     }
 
-    // --- Fonction utilitaire pour envoyer du JSON proprement ---
     private function sendJsonResponse(mixed $data, int $http_code = 200): void
     {
         http_response_code($http_code);
@@ -41,7 +43,23 @@ class ApiController
         echo json_encode($data);
         exit;
     }
-    // -----------------------------------------------------------
+
+    // --- NOUVELLE MÉTHODE ---
+    public function getM365Targets(): void
+    {
+        try {
+            $targets = $this->microsoftGraphService->listDirectoryTargets();
+            if (isset($targets['error'])) {
+                $this->sendJsonResponse($targets, 401); // 401 Unauthorized (Probablement pas connecté)
+            } else {
+                $this->sendJsonResponse($targets);
+            }
+        } catch (\Exception $e) {
+            error_log('Erreur getM365Targets: ' . $e->getMessage());
+            $this->sendJsonResponse(['error' => 'Erreur interne du serveur.'], 500);
+        }
+    }
+    // --- FIN ---
 
     public function getDashboards(): void
     {
@@ -86,9 +104,6 @@ class ApiController
         }
     }
     
-    /**
-     * MODIFIÉ : Cette fonction utilise maintenant le WidgetServiceRegistry
-     */
     public function getWidgetData(int $id): void
     {
         try {
@@ -101,20 +116,17 @@ class ApiController
             $data = [];
             $widgetType = $service['widget_type'] ?? 'link'; 
             
-            // --- NOUVELLE LOGIQUE ---
             if ($widgetType === 'link') {
                 $data = ['error' => 'Ce service est un lien, il n\'a pas de données de widget.'];
             } else {
                 $widgetService = $this->widgetRegistry->getService($widgetType);
                 
                 if ($widgetService) {
-                    // On passe la config du service (qui contient l'URL) au widget
                     $data = $widgetService->getWidgetData($service);
                 } else {
                     $data = ['error' => "Type de widget '{$widgetType}' non supporté ou non enregistré."];
                 }
             }
-            // --- FIN NOUVELLE LOGIQUE ---
             
             $this->sendJsonResponse($data);
 
@@ -241,5 +253,4 @@ class ApiController
             $this->sendJsonResponse(['error' => 'Erreur lors du déplacement du service.'], 500);
         }
     }
-    
 }

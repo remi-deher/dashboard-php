@@ -65,9 +65,7 @@
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     
     <script src="/assets/js/api.js"></script>
-    
     <script src="/assets/js/widget_renderers.js"></script>
-    
     <script src="/assets/js/grid.js"></script>
     <script src="/assets/js/modal.js"></script>
     <script src="/assets/js/dashboard.js"></script> 
@@ -76,6 +74,31 @@
     <button id="quick-add-service-fab" class="fab-add-service" title="Ajouter un service au dashboard actuel">
         <i class="fas fa-plus"></i>
     </button>
+
+    <?php if ($settings['open_modal_to_widgets']): ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ouvre la modale principale
+            // Note: open-settings-modal est défini dans DOM (main.js)
+            // et l'événement click est attaché dans initModals (modal.js)
+            const openBtn = document.getElementById('open-settings-modal');
+            if (openBtn) {
+                openBtn.click();
+            }
+            
+            // Bascule sur l'onglet "Widgets"
+            // showModalTab est défini dans modal.js
+            if (typeof showModalTab === 'function') {
+                showModalTab('tab-widgets');
+            } else {
+                console.error('showModalTab() n\'est pas défini. Assurez-vous que modal.js est chargé.');
+            }
+            
+            // Nettoie l'URL
+            window.history.pushState({}, '', '/');
+        });
+    </script>
+    <?php endif; ?>
 
 </body>
 </html>

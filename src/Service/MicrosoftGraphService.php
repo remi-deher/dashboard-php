@@ -15,6 +15,17 @@ class MicrosoftGraphService implements WidgetInterface
     private string $redirectUri;
     private ?string $refreshToken;
 
+    private const M365_SCOPES = [
+        'offline_access',
+        'User.Read',
+        'Calendars.Read',
+        'Calendars.Read.Shared',
+        'Mail.ReadBasic',
+        'Reports.Read.All',
+        'User.Read.All',
+        'Group.Read.All'
+    ];
+
     public function __construct(SettingsModel $settingsModel, string $redirectUri, array $config)
     {
         $this->settingsModel = $settingsModel;
@@ -22,13 +33,12 @@ class MicrosoftGraphService implements WidgetInterface
         
         $this->clientId = $config['m365_client_id'] ?? '';
         $this->clientSecret = $config['m365_client_secret'] ?? '';
-        $this->tenantId = $config['m365_tenant_id'] ?? 'common'; // 'common' pour multi-tenant
+        $this->tenantId = $config['m365_tenant_id'] ?? 'common';
         $this->refreshToken = $config['m365_refresh_token'] ?? null;
     }
 
     /**
      * Point d'entrée pour tous les widgets M365.
-     * Il route vers la bonne méthode en fonction du type de widget.
      */
     public function getWidgetData(array $service): array
     {
@@ -36,7 +46,6 @@ class MicrosoftGraphService implements WidgetInterface
             return ['error' => 'M365 non connecté. Allez dans Widgets > Se connecter.'];
         }
         
-        // On rafraîchit le token d'accès
         $accessToken = $this->getAccessToken();
         if (!$accessToken) {
             return ['error' => 'Impossible de rafraîchir le token M365. Reconnectez-vous.'];
@@ -44,9 +53,9 @@ class MicrosoftGraphService implements WidgetInterface
 
         switch ($service['widget_type']) {
             case 'm365_calendar':
-                return $this->getCalendarData($accessToken);
+                return $this->getCalendarData($accessToken, $service);
             case 'm365_mail_stats':
-                return $this->getMailStatsData($accessToken);
+                return $this->getMailStatsData($accessToken, $service);
             default:
                 return ['error' => 'Type de widget M365 non supporté'];
         }
@@ -57,21 +66,13 @@ class MicrosoftGraphService implements WidgetInterface
      */
     public function getAuthUrl(): string
     {
-        $scopes = [
-            'offline_access', // Nécessaire pour le refresh token
-            'User.Read',      // Pour info de base
-            'Calendars.Read', // Pour le widget Calendrier
-            'Mail.ReadBasic', // Pour les stats de mail (non admin)
-            'Reports.Read.All' // Pour les stats admin (mails envoyés/reçus)
-        ];
-        
         $params = [
             'client_id' => $this->clientId,
             'response_type' => 'code',
             'redirect_uri' => $this->redirectUri,
             'response_mode' => 'query',
-            'scope' => implode(' ', $scopes),
-            'state' => '12345' // Devrait être un token CSRF
+            'scope' => implode(' ', self::M365_SCOPES),
+            'state' => '12345'
         ];
         
         return "https://login.microsoftonline.com/{$this->tenantId}/oauth2/v2.0/authorize?" . http_build_query($params);
@@ -85,7 +86,7 @@ class MicrosoftGraphService implements WidgetInterface
         $url = "https://login.microsoftonline.com/{$this->tenantId}/oauth2/v2.0/token";
         $params = [
             'client_id' => $this->clientId,
-            'scope' => 'offline_access User.Read Calendars.Read Mail.ReadBasic Reports.Read.All',
+            'scope' => implode(' ', self::M365_SCOPES),
             'code' => $code,
             'redirect_uri' => $this->redirectUri,
             'grant_type' => 'authorization_code',
@@ -95,7 +96,6 @@ class MicrosoftGraphService implements WidgetInterface
         $data = $this->postToApi($url, $params);
 
         if (isset($data['refresh_token'])) {
-            // Succès ! On sauvegarde le refresh token dans la BDD
             $this->settingsModel->save('m365_refresh_token', $data['refresh_token']);
             return true;
         }
@@ -109,10 +109,14 @@ class MicrosoftGraphService implements WidgetInterface
      */
     private function getAccessToken(): ?string
     {
+        if (empty($this->refreshToken)) {
+            return null;
+        }
+        
         $url = "https://login.microsoftonline.com/{$this->tenantId}/oauth2/v2.0/token";
         $params = [
             'client_id' => $this->clientId,
-            'scope' => 'offline_access User.Read Calendars.Read Mail.ReadBasic Reports.Read.All',
+            'scope' => implode(' ', self::M365_SCOPES),
             'refresh_token' => $this->refreshToken,
             'grant_type' => 'refresh_token',
             'client_secret' => $this->clientSecret,
@@ -124,29 +128,86 @@ class MicrosoftGraphService implements WidgetInterface
             return $data['access_token'];
         }
 
-        // Si le refresh token est expiré, on le supprime pour forcer une reconnexion
         if (isset($data['error'])) {
             error_log("Erreur getAccessToken M365: " . $data['error_description']);
             $this->settingsModel->save('m365_refresh_token', null);
         }
         return null;
     }
-
-    // --- Squelettes pour les widgets ---
-
-    private function getCalendarData(string $accessToken): array
+    
+    /**
+     * Récupère les utilisateurs et groupes pour le menu déroulant.
+     */
+    public function listDirectoryTargets(): array
     {
-        $start = date('c'); // Maintenant
-        $end = date('c', strtotime('+1 day')); // Dans 24h
+        $accessToken = $this->getAccessToken();
+        if (!$accessToken) {
+            return ['error' => 'Non connecté à M365.'];
+        }
+
+        $targets = [];
+
+        $me = $this->getFromApi("https://graph.microsoft.com/v1.0/me?\$select=displayName,mail,userPrincipalName", $accessToken);
+        if (isset($me['mail']) || isset($me['userPrincipalName'])) {
+             $targets[] = [
+                'name' => $me['displayName'] . " (Moi)",
+                'email' => $me['mail'] ?? $me['userPrincipalName']
+             ];
+        }
+
+        $users = $this->getFromApi("https://graph.microsoft.com/v1.0/users?\$top=100&\$select=displayName,mail,userPrincipalName", $accessToken);
+        if (isset($users['value'])) {
+            foreach ($users['value'] as $user) {
+                $email = $user['mail'] ?? $user['userPrincipalName'];
+                if (!empty($email) && $email !== ($me['mail'] ?? $me['userPrincipalName'])) {
+                    $targets[] = [
+                        'name' => "[U] " . $user['displayName'],
+                        'email' => $email
+                    ];
+                }
+            }
+        }
+
+        $groups = $this->getFromApi("https://graph.microsoft.com/v1.0/groups?\$top=100&\$filter=groupTypes/any(c:c eq 'Unified') or mailEnabled eq true&\$select=displayName,mail,userPrincipalName", $accessToken);
+         if (isset($groups['value'])) {
+            foreach ($groups['value'] as $group) {
+                $email = $group['mail'] ?? $group['userPrincipalName'];
+                if (!empty($email)) {
+                    $targets[] = [
+                        'name' => "[G] " . $group['displayName'],
+                        'email' => $email
+                    ];
+                }
+            }
+        }
         
-        $url = "https://graph.microsoft.com/v1.0/me/calendarview?startdatetime={$start}&enddatetime={$end}&\$orderby=start/dateTime&\$top=5";
+        usort($targets, function($a, $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
+        
+        return $targets;
+    }
+
+    // --- Fonctions des widgets (getCalendarData, getMailStatsData) ---
+
+    private function getCalendarData(string $accessToken, array $service): array
+    {
+        $start = date('c'); // e.g., 2025-11-01T18:46:48+00:00
+        $end = date('c', strtotime('+1 day'));
+        
+        $userIdentifier = (!empty($service['description'])) ? trim($service['description']) : 'me';
+        
+        // --- FIX : AJOUT DE urlencode() ---
+        // Les dates ISO 8601 contiennent un '+' qui doit être encodé en %2B
+        $url = "https://graph.microsoft.com/v1.0/users/{$userIdentifier}/calendarview?startdatetime=" . urlencode($start) . "&enddatetime=" . urlencode($end) . "&\$orderby=start/dateTime&\$top=5";
+        // --- FIN DU FIX ---
+        
         $data = $this->getFromApi($url, $accessToken);
         
         if (isset($data['error'])) {
             return ['error' => $data['error']['message']];
         }
         
-        // Formater les données pour le frontend
         $events = [];
         foreach ($data['value'] ?? [] as $event) {
             $events[] = [
@@ -159,32 +220,34 @@ class MicrosoftGraphService implements WidgetInterface
         return ['events' => $events];
     }
 
-    private function getMailStatsData(string $accessToken): array
+    private function getMailStatsData(string $accessToken, array $service): array
     {
-        // Exemple : Récupérer les rapports d'activité utilisateur (nécessite les permissions admin)
-        // Ceci est un exemple, l'endpoint exact dépend de ce que vous voulez.
-        $date = date('Y-m-d');
-        $url = "https://graph.microsoft.com/v1.0/reports/getEmailActivityUserDetail(date={$date})";
-        $data = $this->getFromApi($url, $accessToken);
-
-        if (isset($data['error'])) {
-            return ['error' => "Erreur API Graph: " . $data['error']['message'] . ". (Avez-vous les permissions admin ?)" ];
-        }
+        $userIdentifier = (!empty($service['description'])) ? trim($service['description']) : 'me';
         
-        // $data['value'] contient un CSV, il faut le parser.
-        // C'est complexe, pour l'instant retournons juste un compte.
-        // NOTE: Cet endpoint spécifique retourne du CSV, pas du JSON.
-        // Un endpoint plus simple :
-        $url_count = "https://graph.microsoft.com/v1.0/me/messages/delta?\$select=id&\$top=1000";
-        $data_count = $this->getFromApi($url_count, $accessToken);
-         if (isset($data_count['error'])) {
-            return ['error' => $data_count['error']['message']];
-        }
+        if ($userIdentifier === 'me') {
+            $url_count = "https://graph.microsoft.com/v1.0/me/messages/delta?\$select=id&\$top=1000";
+            $data_count = $this->getFromApi($url_count, $accessToken);
+            
+            if (isset($data_count['error'])) {
+                return ['error' => $data_count['error']['message']];
+            }
+            return [
+                'message_count' => count($data_count['value'] ?? []),
+                'next_link' => isset($data_count['@odata.nextLink'])
+            ];
+        } else {
+             $date = date('Y-m-d'); // Ce format est sûr pour les URL
+            $url = "https://graph.microsoft.com/v1.0/reports/getEmailActivityUserDetail(userPrincipalName='{$userIdentifier}')";
+            $data = $this->getFromApi($url, $accessToken);
 
-        return [
-            'message_count' => count($data_count['value'] ?? []),
-            'next_link' => isset($data_count['@odata.nextLink'])
-        ];
+            if (isset($data['error'])) {
+                return ['error' => "Erreur API Graph: " . $data['error']['message'] . ". (Permissions admin requises ?)" ];
+            }
+            
+            return [
+                'report_data' => $data['value'] ?? 'Données de rapport reçues'
+            ];
+        }
     }
     
     // --- Fonctions utilitaires cURL ---

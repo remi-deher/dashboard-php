@@ -6,12 +6,12 @@
             <button id="close-quick-add-service-modal" class="close-modal-btn">&times;</button>
         </header>
         <div class="quick-modal-body">
-            <form method="post" action="/service/add" enctype="multipart/form-data">
+            <form method="post" action="/service/add" enctype="multipart/form-data" data-form="quick-add">
                 <input type="hidden" name="dashboard_id" id="quick-add-service-dashboard-id" value="">
                 
                 <div class="form-group">
                     <label>Type de service</label>
-                    <select name="widget_type">
+                    <select name="widget_type" data-role="widget-type-select">
                         <option value="link" selected>Lien simple (avec statut)</option>
                         <option value="xen_orchestra">Widget Xen Orchestra</option>
                         <option value="glances">Widget Glances</option>
@@ -36,7 +36,19 @@
                     <input type="text" name="icone" placeholder="ex: fas fa-server">
                     <small>Si laissé vide, une favicon sera recherchée (pour les liens).</small>
                 </div>
-                     
+                
+                <div class="form-group" data-role="description-group">
+                    <label>Description</label>
+                    <textarea name="description" placeholder="Description du service..."></textarea>
+                    <small data-role="description-help-text">Pour les widgets M365, ce champ sera remplacé par un sélecteur.</small>
+                </div>
+                
+                <div class="form-group" data-role="m365-target-group" style="display: none;">
+                    <label>Cible M365 (Utilisateur ou Groupe)</label>
+                    <select name="description">
+                        </select>
+                    <small>Liste des utilisateurs et groupes de votre tenant.</small>
+                </div>
                 <div class="form-actions">
                     <button type="submit" class="submit-btn">Ajouter</button>
                 </div>

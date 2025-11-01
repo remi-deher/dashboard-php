@@ -28,7 +28,6 @@ use App\Service\WidgetServiceRegistry;
 use App\Service\XenOrchestraService;
 use App\Service\Widget\GlancesService;
 use App\Service\MicrosoftGraphService;
-// (Ajoutez ici ProxmoxService, PortainerService...)
 use App\Router;
 
 // 3. Initialisation des services
@@ -61,26 +60,18 @@ try {
     $widgetRegistry->register('glances', $glancesService);
 
     // Microsoft Graph
-    
-    // --- FIX CORRIGÉ POUR REVERSE PROXY ---
-    // Détecter le protocole (HTTPS) même derrière un reverse proxy
     $is_https = (
         (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
         (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
         (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on')
     );
     $protocol = $is_https ? 'https' : 'http';
-    
-    // Utiliser HTTP_HOST qui est (normalement) préservé par le proxy
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    
     $base_url = $protocol . "://" . $host;
-    // --- FIN DU FIX ---
-    
     $m365_redirect_uri = $base_url . '/auth/m365/callback';
     
     $microsoftGraphService = new MicrosoftGraphService(
-        $settingsModel, // Il a besoin du model pour sauvegarder le token
+        $settingsModel,
         $m365_redirect_uri,
         [
             'm365_client_id' => $db_settings['m365_client_id'] ?? '',
@@ -89,15 +80,15 @@ try {
             'm365_refresh_token' => $db_settings['m365_refresh_token'] ?? null
         ]
     );
-    // On enregistre le même service pour plusieurs types de widgets
     $widgetRegistry->register('m365_calendar', $microsoftGraphService);
     $widgetRegistry->register('m365_mail_stats', $microsoftGraphService);
 
 
     // Contrôleurs
-    $apiController = new ApiController($serviceModel, $dashboardModel, $pdo, $widgetRegistry); 
+    // MODIFIÉ : Injection de $microsoftGraphService dans ApiController
+    $apiController = new ApiController($serviceModel, $dashboardModel, $pdo, $widgetRegistry, $microsoftGraphService); 
+    
     $dashboardController = new DashboardController($serviceModel, $dashboardModel, $settingsModel); 
-    // On injecte le M365 Service dans AdminController pour qu'il puisse générer l'URL d'auth
     $adminController = new AdminController($serviceModel, $dashboardModel, $settingsModel, $mediaManager, $microsoftGraphService);
 
 } catch (\Exception $e) {
@@ -108,22 +99,22 @@ try {
 $router = new Router();
 
 // 5. Définition des routes
-// Routes principales
 $router->add('GET', '/', [$dashboardController, 'index']); 
 $router->add('GET', '/service/edit/{id}', [$dashboardController, 'showAdminForService']);
 $router->add('GET', '/dashboard/edit/{id}', [$dashboardController, 'showAdminForDashboard']);
-
-// API
 $router->add('GET', '/api/dashboards', [$apiController, 'getDashboards']); 
 $router->add('GET', '/api/services', [$apiController, 'getServices']); 
 $router->add('GET', '/api/status/check', [$apiController, 'checkStatus']); 
 $router->add('GET', '/api/widget/data/{id}', [$apiController, 'getWidgetData']);
+
+// --- NOUVELLE ROUTE API ---
+$router->add('GET', '/api/m365/targets', [$apiController, 'getM365Targets']);
+// --- FIN ---
+
 $router->add('POST', '/api/services/layout/save', [$apiController, 'saveLayout']); 
 $router->add('POST', '/api/dashboards/layout/save', [$apiController, 'saveDashboardLayout']); 
 $router->add('POST', '/api/service/resize/{id}', [$apiController, 'saveServiceSize']);
 $router->add('POST', '/api/service/move/{id}/{dashboardId}', [$apiController, 'moveService']);
-
-// Formulaires (POST)
 $router->add('POST', '/service/add', [$adminController, 'addService']);
 $router->add('POST', '/service/update/{id}', [$adminController, 'updateService']);
 $router->add('POST', '/service/delete/{id}', [$adminController, 'deleteService']);
@@ -131,11 +122,8 @@ $router->add('POST', '/dashboard/add', [$adminController, 'addDashboard']);
 $router->add('POST', '/dashboard/update/{id}', [$adminController, 'updateDashboard']);
 $router->add('POST', '/dashboard/delete/{id}', [$adminController, 'deleteDashboard']);
 $router->add('POST', '/settings/save', [$adminController, 'saveSettings']);
-
-// --- Routes d'authentification ---
 $router->add('GET', '/auth/m365/connect', [$adminController, 'connectM365']);
 $router->add('GET', '/auth/m365/callback', [$adminController, 'callbackM365']);
-// --- FIN ---
 
 // 6. Lancement du routeur
 try {
