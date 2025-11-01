@@ -151,6 +151,15 @@ class AdminController
                 $this->settingsModel->save('theme', $themeName);
             }
         }
+        
+        // Sauvegarde des paramètres XOA
+        if (isset($_POST['xen_orchestra_host'])) {
+            $this->settingsModel->save('xen_orchestra_host', $_POST['xen_orchestra_host']);
+        }
+        // Ne sauvegarde le token que s'il n'est pas vide (pour éviter d'écraser avec un champ "password" vide)
+        if (!empty($_POST['xen_orchestra_token'])) {
+            $this->settingsModel->save('xen_orchestra_token', $_POST['xen_orchestra_token']);
+        }
 
         header('Location: /');
         exit;

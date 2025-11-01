@@ -40,12 +40,18 @@ try {
     $dashboardModel = new DashboardModel($pdo);
     $settingsModel = new SettingsModel($pdo);
     
+    // --- MODIFICATION ICI ---
+    // Récupérer les paramètres de la BDD pour l'injection
+    $db_settings = $settingsModel->getAllAsKeyPair();
+    // --- FIN MODIFICATION ---
+    
     // Services
     $mediaManager = new MediaManager($projectRoot);
-    // AJOUTÉ : Instancier le service XOA avec la config
+    
+    // MODIFIÉ : Instancier le service XOA avec les identifiants de la BDD
     $xenOrchestraService = new XenOrchestraService(
-        $config['api_keys']['xen_orchestra_host'] ?? null,
-        $config['api_keys']['xen_orchestra_token'] ?? null
+        $db_settings['xen_orchestra_host'] ?? null,
+        $db_settings['xen_orchestra_token'] ?? null
     );
 
     // Contrôleurs

@@ -34,6 +34,12 @@ class DashboardController
         $settings['background_color'] = $settings_raw['background_color'] ?? '';
         $settings['background_image'] = $settings_raw['background_image'] ?? '';
         $settings['theme'] = $settings_raw['theme'] ?? 'default-dark'; 
+        
+        // --- AJOUT DE CES LIGNES ---
+        $settings['xen_orchestra_host'] = $settings_raw['xen_orchestra_host'] ?? '';
+        // Récupère le token pour le champ 'value' du formulaire
+        $settings['xen_orchestra_token'] = $settings_raw['xen_orchestra_token'] ?? '';
+        // --- FIN DE L'AJOUT ---
 
         // UTILISATION DES MODÈLES
         $edit_service = $edit_service_id ? $this->serviceModel->getById($edit_service_id) : null;
@@ -54,5 +60,4 @@ class DashboardController
         $this->index(null, $id);
     }
     
-    // La méthode privée getDashboardById() a été supprimée
 }

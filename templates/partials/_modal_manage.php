@@ -175,7 +175,7 @@
             <div id="tab-settings" class="modal-tab-content">
                 <section>
                     <h2>Paramètres Généraux</h2>
-                    <form method="post" action="/settings/save" enctype="multipart/form-data">
+                    <form id="settings-form" method="post" action="/settings/save" enctype="multipart/form-data">
                         <div class="form-group">
                             <label for="theme_selector">Thème</label>
                             <select id="theme_selector" name="theme">
@@ -205,13 +205,59 @@
                             <input type="file" id="background_image" name="background_image" accept="image/png, image/jpeg, image/webp">
                              <small>Surcharge l'image de fond du thème si défini.</small>
                         </div>
+                        </form>
+                </section>
+                
+                <section>
+                    <h2>Paramètres des Widgets</h2>
+                    <form id="widget-settings-form" method="post" action="/settings/save" enctype="multipart/form-data">
+                        <h3>Xen Orchestra</h3>
+                        <div class="form-group">
+                            <label for="xen_orchestra_host">Hôte XOA</label>
+                            <input type="text" id="xen_orchestra_host" name="xen_orchestra_host" value="<?= htmlspecialchars($settings['xen_orchestra_host'] ?? '') ?>" placeholder="https://mon-xoa.domaine.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="xen_orchestra_token">Token d'API XOA</label>
+                            <input type="password" id="xen_orchestra_token" name="xen_orchestra_token" value="<?= htmlspecialchars($settings['xen_orchestra_token'] ?? '') ?>" placeholder="Collez votre token ici">
+                            <small>Créez un token dans votre profil XOA (User > My account > API tokens). Le token n'est sauvegardé que s'il est modifié.</small>
+                        </div>
+                        
                         <div class="form-actions">
-                            <button type="submit" class="submit-btn">Enregistrer</button>
+                            <button type="submit" class="submit-btn">Enregistrer les Paramètres</button>
                         </div>
                     </form>
                 </section>
-            </div>
+                </div>
 
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var mainForm = document.getElementById('widget-settings-form');
+    var generalForm = document.getElementById('settings-form');
+    
+    if (mainForm && generalForm) {
+        mainForm.addEventListener('submit', function(e) {
+            // Récupérer tous les champs de l'autre formulaire (général)
+            var inputs = generalForm.querySelectorAll('input, select, textarea');
+            inputs.forEach(function(input) {
+                if (input.name) {
+                    // Créer un champ caché dans le formulaire principal (widget)
+                    var hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = input.name;
+                    // Gérer les cases à cocher
+                    if (input.type === 'checkbox') {
+                        hidden.value = input.checked ? 'on' : ''; // 'on' si coché
+                    } else {
+                        hidden.value = input.value;
+                    }
+                    mainForm.appendChild(hidden);
+                }
+            });
+        });
+    }
+});
+</script>
