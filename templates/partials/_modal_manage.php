@@ -11,7 +11,7 @@
         <div class="modal-tabs">
             <button class="modal-tab-btn active" data-tab="tab-dashboards">Dashboards</button>
             <button class="modal-tab-btn" data-tab="tab-services">Services</button>
-            <button class="modal-tab-btn" data-tab="tab-widget">Widgets</button>
+            <button class="modal-tab-btn" data-tab="tab-widgets">Widgets</button>
             <button class="modal-tab-btn" data-tab="tab-settings">Paramètres</button>
         </div>
 
@@ -127,7 +127,8 @@
                                     'glances' => 'Widget Glances',
                                     'proxmox' => 'Widget Proxmox',
                                     'portainer' => 'Widget Portainer',
-                                    // Ajoutez d'autres widgets ici
+                                    'm365_calendar' => 'Widget M365 Calendrier',
+                                    'm365_mail_stats' => 'Widget M365 Mail Stats'
                                 ];
                                 
                                 foreach ($widgets as $type => $label): ?>
@@ -184,7 +185,7 @@
                 </section>
             </div>
 
-            <div id="tab-widget" class="modal-tab-content">
+            <div id="tab-widgets" class="modal-tab-content">
                 <section>
                     <h2>Paramètres des Widgets</h2>
                     <form id="widget-settings-form" method="post" action="/settings/save" enctype="multipart/form-data">
@@ -220,6 +221,37 @@
                             <input type="password" id="portainer_api_key" name="portainer_api_key" value="<?= htmlspecialchars($settings['portainer_api_key'] ?? '') ?>" placeholder="Collez votre clé d'API Portainer ici">
                             <small>Créez une clé dans Portainer (User > My account > API tokens).</small>
                         </div>
+                        
+                        <hr style="border-color: var(--border-color); margin: 25px 0;">
+
+                        <h3>Microsoft 365 (Graph API)</h3>
+                        <div class="form-group">
+                            <label for="m365_tenant_id">ID de Locataire (Tenant ID)</label>
+                            <input type="text" id="m365_tenant_id" name="m365_tenant_id" value="<?= htmlspecialchars($settings['m365_tenant_id'] ?? 'common') ?>" placeholder="common (défaut) ou votre ID de tenant">
+                        </div>
+                        <div class="form-group">
+                            <label for="m365_client_id">ID d'Application (Client ID)</label>
+                            <input type="text" id="m365_client_id" name="m365_client_id" value="<?= htmlspecialchars($settings['m365_client_id'] ?? '') ?>" placeholder="Client ID de votre App Azure">
+                        </div>
+                        <div class="form-group">
+                            <label for="m365_client_secret">Secret Client</label>
+                            <input type="password" id="m365_client_secret" name="m365_client_secret" value="<?= htmlspecialchars($settings['m365_client_secret'] ?? '') ?>" placeholder="Collez votre secret client ici">
+                        </div>
+                        
+                        <small>URL de rappel à entrer dans Azure : <code><?= htmlspecialchars($base_url . '/auth/m365/callback') ?></code></small>
+                        
+                        <div class="form-actions" style="margin-top: 15px;">
+                            <?php if (empty($settings['m365_refresh_token'])): ?>
+                                <a href="/auth/m365/connect" class="edit-btn" style="background-color: #0078d4;">Se connecter à Microsoft 365</a>
+                            <?php else: ?>
+                                <span style="color: var(--status-online); display: inline-flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-check-circle"></i> Connecté à Microsoft 365
+                                </span>
+                                <a href="/auth/m365/connect" class="cancel-btn">Se reconnecter</a>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <hr style="border-color: var(--border-color); margin: 25px 0;">
                         
                         <div class="form-actions">
                             <button type="submit" class="submit-btn">Enregistrer les Paramètres Widgets</button>
@@ -272,3 +304,17 @@
         </div>
     </div>
 </div>
+
+<?php // Gérer l'ouverture de la modale après l'auth
+if ($settings['open_modal_to_widgets']): ?>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Ouvre la modale principale
+        document.getElementById('open-settings-modal').click();
+        // Bascule sur l'onglet "Widgets"
+        showModalTab('tab-widgets');
+        // Nettoie l'URL pour ne pas ré-ouvrir à chaque rechargement
+        window.history.pushState({}, '', '/');
+    });
+</script>
+<?php endif; ?>

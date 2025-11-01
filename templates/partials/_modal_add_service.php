@@ -17,7 +17,9 @@
                         <option value="glances">Widget Glances</option>
                         <option value="proxmox">Widget Proxmox</option>
                         <option value="portainer">Widget Portainer</option>
-                        </select>
+                        <option value="m365_calendar">Widget M365 Calendrier</option>
+                        <option value="m365_mail_stats">Widget M365 Mail Stats</option>
+                    </select>
                 </div>
                 
                 <div class="form-group">
@@ -27,7 +29,7 @@
                 <div class="form-group">
                     <label>URL</label>
                     <input type="url" name="url" placeholder="https://..." required>
-                    <small>Pour les liens, c'est la cible. Pour les widgets (XOA, Glances, Proxmox...), c'est l'URL de l'hôte/API (ex: http://192.168.1.50:61208).</small>
+                    <small>Pour les liens, c'est la cible. Pour les widgets (Glances, Proxmox...), c'est l'URL de l'hôte/API (ex: http://192.168.1.50:61208).</small>
                 </div>
                 <div class="form-group">
                     <label>Icône Font Awesome (optionnel)</label>

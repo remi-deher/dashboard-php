@@ -9,7 +9,6 @@ use App\Model\SettingsModel;
 
 class DashboardController
 {
-    // --- FIX : AJOUT DES DÉCLARATIONS DE PROPRIÉTÉS ---
     private ServiceModel $serviceModel;
     private DashboardModel $dashboardModel; 
     private SettingsModel $settingsModel;   
@@ -24,7 +23,6 @@ class DashboardController
         $this->settingsModel = $settingsModel;
     }
 
-    // Affiche la page principale, charge les données nécessaires pour la vue et la modale
     public function index(?int $edit_service_id = null, ?int $edit_dashboard_id = null): void
     {
         $all_services = $this->serviceModel->getAll();
@@ -43,16 +41,37 @@ class DashboardController
             'proxmox_token_id' => $settings_raw['proxmox_token_id'] ?? '',
             'proxmox_token_secret' => $settings_raw['proxmox_token_secret'] ?? '',
             'portainer_api_key' => $settings_raw['portainer_api_key'] ?? '',
+            
+            // M365
+            'm365_client_id' => $settings_raw['m365_client_id'] ?? '',
+            'm365_client_secret' => $settings_raw['m365_client_secret'] ?? '',
+            'm365_tenant_id' => $settings_raw['m365_tenant_id'] ?? 'common',
+            'm365_refresh_token' => $settings_raw['m365_refresh_token'] ?? null,
         ];
+        
+        $settings['open_modal_to_widgets'] = isset($_GET['auth']) && $_GET['auth'] === 'm365_success';
 
         $edit_service = $edit_service_id ? $this->serviceModel->getById($edit_service_id) : null;
         $edit_dashboard = $edit_dashboard_id ? $this->dashboardModel->getById($edit_dashboard_id) : null;
 
-        // Inclure le template principal
+        // --- FIX CORRIGÉ POUR REVERSE PROXY ---
+        // Détecter le protocole (HTTPS) même derrière un reverse proxy
+        $is_https = (
+            (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
+            (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'httpsS') ||
+            (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on')
+        );
+        $protocol = $is_https ? 'https' : 'http';
+        
+        // Utiliser HTTP_HOST qui est (normalement) préservé par le proxy
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        
+        $base_url = $protocol . "://" . $host;
+        // --- FIN DU FIX ---
+
         require __DIR__ . '/../../templates/dashboard.php';
     }
 
-    // Méthodes pour afficher la modale ouverte sur le bon onglet via une URL spécifique
     public function showAdminForService(int $id): void
     {
         $this->index($id, null);
@@ -62,5 +81,4 @@ class DashboardController
     {
         $this->index(null, $id);
     }
-    
 }
