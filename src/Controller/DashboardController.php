@@ -35,14 +35,12 @@ class DashboardController
             'background_image' => $settings_raw['background_image'] ?? '',
             'theme' => $settings_raw['theme'] ?? 'default-dark',
             
-            // Widgets
             'xen_orchestra_host' => $settings_raw['xen_orchestra_host'] ?? '',
             'xen_orchestra_token' => $settings_raw['xen_orchestra_token'] ?? '',
             'proxmox_token_id' => $settings_raw['proxmox_token_id'] ?? '',
             'proxmox_token_secret' => $settings_raw['proxmox_token_secret'] ?? '',
             'portainer_api_key' => $settings_raw['portainer_api_key'] ?? '',
             
-            // M365
             'm365_client_id' => $settings_raw['m365_client_id'] ?? '',
             'm365_client_secret' => $settings_raw['m365_client_secret'] ?? '',
             'm365_tenant_id' => $settings_raw['m365_tenant_id'] ?? 'common',
@@ -55,17 +53,13 @@ class DashboardController
         $edit_dashboard = $edit_dashboard_id ? $this->dashboardModel->getById($edit_dashboard_id) : null;
 
         // --- FIX CORRIGÉ POUR REVERSE PROXY ---
-        // Détecter le protocole (HTTPS) même derrière un reverse proxy
         $is_https = (
             (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
-            (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'httpsS') ||
+            (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') || // <-- TYPO CORRIGÉE
             (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on')
         );
         $protocol = $is_https ? 'https' : 'http';
-        
-        // Utiliser HTTP_HOST qui est (normalement) préservé par le proxy
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        
         $base_url = $protocol . "://" . $host;
         // --- FIN DU FIX ---
 

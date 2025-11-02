@@ -14,10 +14,16 @@ const DOM = {
     dropZoneLeft: null,
     dropZoneRight: null,
     
-    // Modales rapides
-    quickAddFab: null,
-    quickAddServiceModal: null,
-    closeQuickAddServiceModal: null,
+    // Modales "Ajout Rapide" (le parcours)
+    quickAddFab: null, // Le bouton +
+    
+    // Étape 1 (Nouvelle modale)
+    quickAddStep1_ChoiceModal: null,
+    closeQuickAddStep1Modal: null,
+
+    // Étape 2 (L'ancienne modale, maintenant réutilisée)
+    quickAddStep2_ServiceModal: null,
+    closeQuickAddStep2Modal: null,
     quickAddServiceDashboardIdInput: null,
     
     // Bouton "+" des onglets
@@ -57,10 +63,12 @@ document.addEventListener('DOMContentLoaded', () => {
     DOM.dropZoneLeft = document.getElementById('drop-zone-left');
     DOM.dropZoneRight = document.getElementById('drop-zone-right');
     
-    // Modales rapides
+    // Modales "Ajout Rapide" (le parcours)
     DOM.quickAddFab = document.getElementById('quick-add-service-fab');
-    DOM.quickAddServiceModal = document.getElementById('quick-add-service-modal');
-    DOM.closeQuickAddServiceModal = document.getElementById('close-quick-add-service-modal');
+    DOM.quickAddStep1_ChoiceModal = document.getElementById('modal-add-step1-choice');
+    DOM.closeQuickAddStep1Modal = document.getElementById('close-modal-add-step1');
+    DOM.quickAddStep2_ServiceModal = document.getElementById('quick-add-service-modal');
+    DOM.closeQuickAddStep2Modal = document.getElementById('close-quick-add-service-modal');
     DOM.quickAddServiceDashboardIdInput = document.getElementById('quick-add-service-dashboard-id');
     
     DOM.quickAddDashboardModal = document.getElementById('quick-add-dashboard-modal');
@@ -77,12 +85,21 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTabsAndFirstDashboard(); // Charge les données et lance l'app (depuis dashboard.js)
 
     // 3. Attacher les écouteurs de navigation principaux
-    DOM.navArrowLeft.addEventListener('click', navigatePrev);
-    DOM.navArrowRight.addEventListener('click', navigateNext);
-    DOM.tabsContainer.addEventListener('wheel', throttle((event) => {
-        event.preventDefault();
-        if (event.deltaY > 0) navigateNext();
-        else navigatePrev();
-    }, 200));
+    // --- FIX : AJOUT DE VÉRIFICATIONS DE NULLITÉ ---
+    // (Cela empêchera les erreurs JS si le PHP échoue)
+    if (DOM.navArrowLeft) {
+        DOM.navArrowLeft.addEventListener('click', navigatePrev);
+    }
+    if (DOM.navArrowRight) {
+        DOM.navArrowRight.addEventListener('click', navigateNext);
+    }
+    if (DOM.tabsContainer) {
+        DOM.tabsContainer.addEventListener('wheel', throttle((event) => {
+            event.preventDefault();
+            if (event.deltaY > 0) navigateNext();
+            else navigatePrev();
+        }, 200));
+    }
+    // --- FIN DU FIX ---
 
 }); // Fin DOMContentLoaded

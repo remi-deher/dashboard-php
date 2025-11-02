@@ -91,6 +91,9 @@ function loadWidgetData(item, serviceId, widgetType) {
         .then(data => {
             container.classList.remove('loading');
             
+            // AJOUT: Injecter l'ID du service pour le renderer (ex: ID de canvas)
+            data.serviceId = serviceId; 
+
             // On vérifie si un renderer existe pour ce type de widget
             const renderer = WIDGET_RENDERERS[widgetType];
             

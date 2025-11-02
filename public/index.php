@@ -60,14 +60,18 @@ try {
     $widgetRegistry->register('glances', $glancesService);
 
     // Microsoft Graph
+    
+    // --- FIX CORRIGÉ POUR REVERSE PROXY ---
     $is_https = (
         (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
-        (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+        (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') || // <-- TYPO CORRIGÉE
         (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on')
     );
     $protocol = $is_https ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $base_url = $protocol . "://" . $host;
+    // --- FIN DU FIX ---
+    
     $m365_redirect_uri = $base_url . '/auth/m365/callback';
     
     $microsoftGraphService = new MicrosoftGraphService(
@@ -85,9 +89,7 @@ try {
 
 
     // Contrôleurs
-    // MODIFIÉ : Injection de $microsoftGraphService dans ApiController
     $apiController = new ApiController($serviceModel, $dashboardModel, $pdo, $widgetRegistry, $microsoftGraphService); 
-    
     $dashboardController = new DashboardController($serviceModel, $dashboardModel, $settingsModel); 
     $adminController = new AdminController($serviceModel, $dashboardModel, $settingsModel, $mediaManager, $microsoftGraphService);
 
@@ -106,11 +108,7 @@ $router->add('GET', '/api/dashboards', [$apiController, 'getDashboards']);
 $router->add('GET', '/api/services', [$apiController, 'getServices']); 
 $router->add('GET', '/api/status/check', [$apiController, 'checkStatus']); 
 $router->add('GET', '/api/widget/data/{id}', [$apiController, 'getWidgetData']);
-
-// --- NOUVELLE ROUTE API ---
 $router->add('GET', '/api/m365/targets', [$apiController, 'getM365Targets']);
-// --- FIN ---
-
 $router->add('POST', '/api/services/layout/save', [$apiController, 'saveLayout']); 
 $router->add('POST', '/api/dashboards/layout/save', [$apiController, 'saveDashboardLayout']); 
 $router->add('POST', '/api/service/resize/{id}', [$apiController, 'saveServiceSize']);
