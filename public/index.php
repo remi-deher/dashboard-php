@@ -20,6 +20,7 @@ if (!isset($pdo)) {
 use App\Controller\ApiController;
 use App\Controller\DashboardController;
 use App\Controller\AdminController;
+use App\Controller\StreamController; // AJOUTÉ
 use App\Model\ServiceModel;
 use App\Model\DashboardModel;
 use App\Model\SettingsModel;
@@ -29,10 +30,14 @@ use App\Service\XenOrchestraService;
 use App\Service\Widget\GlancesService;
 use App\Service\MicrosoftGraphService;
 use App\Router;
+use Predis\Client as RedisClient; // AJOUTÉ
 
 // 3. Initialisation des services
 try {
     $projectRoot = dirname(__DIR__);
+
+    // AJOUT : Connexion Redis
+    $redisClient = new RedisClient('tcp://127.0.0.1:6379');
 
     // Modèles
     $serviceModel = new ServiceModel($pdo);
@@ -60,18 +65,14 @@ try {
     $widgetRegistry->register('glances', $glancesService);
 
     // Microsoft Graph
-    
-    // --- FIX CORRIGÉ POUR REVERSE PROXY ---
     $is_https = (
         (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
-        (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') || // <-- TYPO CORRIGÉE
+        (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
         (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on')
     );
     $protocol = $is_https ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $base_url = $protocol . "://" . $host;
-    // --- FIN DU FIX ---
-    
     $m365_redirect_uri = $base_url . '/auth/m365/callback';
     
     $microsoftGraphService = new MicrosoftGraphService(
@@ -89,9 +90,21 @@ try {
 
 
     // Contrôleurs
-    $apiController = new ApiController($serviceModel, $dashboardModel, $pdo, $widgetRegistry, $microsoftGraphService); 
+    // MODIFIÉ : Injection de $redisClient
+    $apiController = new ApiController(
+        $serviceModel, 
+        $dashboardModel, 
+        $pdo, 
+        $widgetRegistry, 
+        $microsoftGraphService,
+        $redisClient // AJOUTÉ
+    ); 
+    
     $dashboardController = new DashboardController($serviceModel, $dashboardModel, $settingsModel); 
     $adminController = new AdminController($serviceModel, $dashboardModel, $settingsModel, $mediaManager, $microsoftGraphService);
+
+    // AJOUTÉ : Nouveau contrôleur de stream
+    $streamController = new StreamController($redisClient);
 
 } catch (\Exception $e) {
     die("Erreur lors de l'initialisation des services: " . $e->getMessage());
@@ -108,7 +121,13 @@ $router->add('GET', '/api/dashboards', [$apiController, 'getDashboards']);
 $router->add('GET', '/api/services', [$apiController, 'getServices']); 
 $router->add('GET', '/api/status/check', [$apiController, 'checkStatus']); 
 $router->add('GET', '/api/widget/data/{id}', [$apiController, 'getWidgetData']);
+
+// --- NOUVELLE ROUTE API ---
 $router->add('GET', '/api/m365/targets', [$apiController, 'getM365Targets']);
+
+// --- NOUVELLE ROUTE STREAM ---
+$router->add('GET', '/api/stream', [$streamController, 'handleStream']);
+
 $router->add('POST', '/api/services/layout/save', [$apiController, 'saveLayout']); 
 $router->add('POST', '/api/dashboards/layout/save', [$apiController, 'saveDashboardLayout']); 
 $router->add('POST', '/api/service/resize/{id}', [$apiController, 'saveServiceSize']);

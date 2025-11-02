@@ -14,5 +14,7 @@
             "App\\": "src/"
         }
     },
-    "require": {}
+    "require": {
+        "predis/predis": "^3.2"
+    }
 }

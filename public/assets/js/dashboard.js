@@ -49,32 +49,82 @@ function checkServiceStatus(serviceUrl, cardElement) {
         });
 };
 
-function startStatusRefresh() {
-    if (STATE.statusRefreshInterval) clearInterval(STATE.statusRefreshInterval);
-
-    const refreshAllVisible = () => {
-         const activeContainer = getDashboardContainer(STATE.currentDashboardId);
-         if(activeContainer){
-             // Rafraîchir les LIENS (ping)
-             activeContainer.querySelectorAll('.dashboard-item[data-url]').forEach(item => {
-                 // Tous les services, y compris les widgets, ont un check de statut
-                 checkServiceStatus(item.dataset.url, item);
-             });
-             // Rafraîchir les WIDGETS (données)
-             activeContainer.querySelectorAll('.dashboard-item[data-widget-id]').forEach(item => {
-                loadWidgetData(item, item.dataset.widgetId, item.dataset.widgetType);
-             });
-         }
-    };
-
-    refreshAllVisible(); // Exécution immédiate
-    STATE.statusRefreshInterval = setInterval(refreshAllVisible, 60000); // 1 minute
-};
+/* * SUPPRIMÉ : startStatusRefresh()
+ * La mise à jour est maintenant gérée par Server-Sent Events (SSE)
+ */
+// function startStatusRefresh() { ... }
 
 
 /**
- * MODIFIÉ : Charge les données d'un widget via l'API et utilise
- * le registre WIDGET_RENDERERS pour l'affichage.
+ * AJOUT : Initialise la connexion Server-Sent Events (SSE)
+ * Appelée une seule fois au chargement de la page.
+ */
+function initSseStream() {
+    console.log("Initialisation du flux SSE (/api/stream)...");
+    const eventSource = new EventSource('/api/stream');
+
+    eventSource.addEventListener('widget_update', (e) => {
+        try {
+            const update = JSON.parse(e.data);
+            const serviceId = update.serviceId;
+            
+            // Trouver l'élément widget sur la page
+            const item = document.querySelector(`.dashboard-item[data-widget-id="${serviceId}"]`);
+
+            // Si le widget n'est pas sur la page (ou pas sur ce dashboard), ignorer
+            if (!item || item.closest('.dashboard-grid').style.display === 'none') {
+                return;
+            }
+
+            console.log(`[SSE] Mise à jour reçue pour le widget ${serviceId}`);
+
+            // Nous avons reçu les données. Nous devons les parser et les afficher.
+            const payload = JSON.parse(update.payload); // C'est le { ... }
+            const widgetType = item.dataset.widgetType;
+            const renderer = WIDGET_RENDERERS[widgetType];
+
+            if (!renderer) return;
+
+            // Recréer le contexte de rendu (comme dans la v2)
+            const sizeClass = item.classList.contains('size-large') ? 'size-large'
+                            : item.classList.contains('size-small') ? 'size-small'
+                            : 'size-medium';
+            
+            const renderContext = {
+                data: payload,
+                serviceId: serviceId,
+                sizeClass: sizeClass,
+                widgetType: widgetType
+            };
+
+            // Mettre à jour le HTML du widget
+            const container = item.querySelector('.widget-container');
+            if (container) {
+                // Gérer les erreurs venant du worker (ex: M365 non connecté)
+                if (payload.error) {
+                    throw new Error(payload.error);
+                }
+                container.innerHTML = renderer(renderContext);
+            }
+
+        } catch (error) {
+            console.error("Erreur lors du traitement du message SSE:", error, e.data);
+            const container = item.querySelector('.widget-container');
+            if (container) {
+                container.innerHTML = `<p class="widget-error" title="${error.message}"><i class="fas fa-exclamation-triangle"></i> Erreur</p>`;
+            }
+        }
+    });
+
+    eventSource.onerror = (err) => {
+        console.error("Erreur EventSource:", err);
+        // La reconnexion est gérée automatiquement par le navigateur
+    };
+}
+
+
+/**
+ * MODIFIÉ : Gère le chargement initial (lecture du cache)
  */
 function loadWidgetData(item, serviceId, widgetType) {
     const container = item.querySelector('.widget-container');
@@ -87,39 +137,40 @@ function loadWidgetData(item, serviceId, widgetType) {
     container.classList.add('loading');
     container.innerHTML = '<p class="loading-message" style="font-size: 0.9rem;">Chargement...</p>';
 
+    // Cet appel va maintenant lire le cache Redis (via ApiController)
     apiGetWidgetData(serviceId)
         .then(data => {
             container.classList.remove('loading');
-            
-            // AJOUT: Injecter l'ID du service pour le renderer (ex: ID de canvas)
-            data.serviceId = serviceId; 
 
-            // On vérifie si un renderer existe pour ce type de widget
+            const sizeClass = item.classList.contains('size-large') ? 'size-large'
+                            : item.classList.contains('size-small') ? 'size-small'
+                            : 'size-medium';
+            
+            const renderContext = {
+                data: data,
+                serviceId: serviceId,
+                sizeClass: sizeClass,
+                widgetType: widgetType
+            };
+
             const renderer = WIDGET_RENDERERS[widgetType];
             
             if (renderer) {
-                // Le renderer gère lui-même les data.error
-                // et retourne le HTML ou lance une erreur
-                const html = renderer(data);
+                const html = renderer(renderContext);
                 container.innerHTML = html;
             } else {
-                // Gérer les types de widgets inconnus
-                console.error(`Type de widget inconnu: '${widgetType}' pour le service ${serviceId}`);
                 throw new Error(`Type de widget inconnu: '${widgetType}'`);
             }
         })
         .catch(error => {
-            // Cette section attrape les erreurs de fetch (apiGetWidgetData)
-            // OU les erreurs lancées par le renderer (ex: data.error)
             console.error(`Erreur widget ${serviceId} (${widgetType}):`, error);
             container.classList.remove('loading');
-            container.innerHTML = `<p class="widget-error" title="${error.message}"><i class="fas fa-exclamation-triangle"></i> Erreur</p>`;
+            container.innerHTML = `<p class="widget-error" title="${error.message}"><i class="fas fa-exclamation-triangle"></i> ${error.message}</p>`;
         });
 }
 
 
 // --- Helpers de Navigation (inchangés) ---
-// ... (getDashboardByIndex, updateNavArrows, getDashboardContainer) ...
 function getDashboardByIndex(offset) {
     if (!STATE.allDashboards || STATE.allDashboards.length <= 1) return null;
     const currentIndex = STATE.allDashboards.findIndex(db => db.id == STATE.currentDashboardId);
@@ -146,7 +197,7 @@ function getDashboardContainer(dashboardId, create = false) {
 }
 
 
-// --- buildServicesGrid (inchangé, sauf pour la partie widget) ---
+// --- buildServicesGrid ---
 function buildServicesGrid(dashboardId) {
     const container = getDashboardContainer(dashboardId, true);
     if (!container) return Promise.reject("Conteneur de dashboard introuvable.");
@@ -159,13 +210,14 @@ function buildServicesGrid(dashboardId) {
             container.innerHTML = ''; 
             if (services.error) { throw new Error(services.error); }
             if (!services || services.length === 0) {
-                 if (STATE.statusRefreshInterval) clearInterval(STATE.statusRefreshInterval);
                  return;
             }
 
             services.forEach(service => {
                 const item = document.createElement('div');
-                item.className = `dashboard-item ${service.size_class || 'size-medium'}`;
+                const sizeClass = service.size_class || 'size-medium';
+                
+                item.className = `dashboard-item ${sizeClass}`;
                 item.dataset.serviceId = service.id;
                 item.dataset.dashboardId = dashboardId;
                 item.dataset.url = service.url; // TOUJOURS ajouter l'URL pour le ping
@@ -209,23 +261,21 @@ function buildServicesGrid(dashboardId) {
                     container.appendChild(item);
                     // Tous les services, y compris les widgets, ont un check de statut (ping)
                     checkServiceStatus(service.url, item);
-                    // Et on charge les données spécifiques du widget
+                    // Et on charge les données spécifiques du widget (lecture du cache)
                     loadWidgetData(item, service.id, service.widget_type);
                 }
             });
 
             initInteractForItems(container);
-            startStatusRefresh();
+            // startStatusRefresh(); // SUPPRIMÉ
         })
         .catch(error => {
             console.error("Erreur buildServicesGrid:", error);
             container.innerHTML = `<p class="loading-message">Erreur de chargement: ${error.message}</p>`;
-            if (STATE.statusRefreshInterval) clearInterval(STATE.statusRefreshInterval);
         });
 };
 
-// --- Logique de navigation (inchangée) ---
-// ... (navigateToDashboard, navigateNext, navigatePrev, createDashboardTabElement, appendAddButtonToTabs, loadTabsAndFirstDashboard) ...
+// --- Logique de navigation ---
 function navigateToDashboard(dashboardId) {
     const targetId = parseInt(dashboardId, 10);
     if (isNaN(targetId) || STATE.isNavigating || targetId === STATE.currentDashboardId) return;
@@ -253,7 +303,7 @@ function navigateToDashboard(dashboardId) {
         container.style.display = 'grid';
         STATE.isNavigating = false;
         updateNavArrows();
-        startStatusRefresh();
+        // startStatusRefresh(); // SUPPRIMÉ
     }
 };
 const navigateNext = () => {
@@ -301,11 +351,15 @@ function loadTabsAndFirstDashboard() {
             });
             appendAddButtonToTabs();
             initTabSorting(DOM.tabsContainer);
+            
             if (dashboards.length > 0) {
                 navigateToDashboard(dashboards[0].id);
             } else {
                  updateNavArrows();
             }
+            
+            // AJOUT: Démarrer le client SSE une fois les dashboards chargés
+            initSseStream();
         })
         .catch(error => {
             console.error("Erreur loadTabsAndFirstDashboard:", error);

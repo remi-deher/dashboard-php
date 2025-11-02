@@ -8,6 +8,7 @@ use App\Model\DashboardModel;
 use App\Service\WidgetServiceRegistry;
 use App\Service\MicrosoftGraphService; // AJOUTÉ
 use PDO;
+use Predis\Client as RedisClient; // AJOUTÉ
 
 class ApiController
 {
@@ -16,19 +17,22 @@ class ApiController
     private WidgetServiceRegistry $widgetRegistry;
     private PDO $pdo; 
     private MicrosoftGraphService $microsoftGraphService; // AJOUTÉ
+    private RedisClient $redis; // AJOUTÉ
 
     public function __construct(
         ServiceModel $serviceModel, 
         DashboardModel $dashboardModel, 
         PDO $pdo,
         WidgetServiceRegistry $widgetRegistry,
-        MicrosoftGraphService $microsoftGraphService // AJOUTÉ
+        MicrosoftGraphService $microsoftGraphService, // AJOUTÉ
+        RedisClient $redis // AJOUTÉ
     ) {
         $this->serviceModel = $serviceModel;
         $this->dashboardModel = $dashboardModel;
         $this->pdo = $pdo;
         $this->widgetRegistry = $widgetRegistry;
         $this->microsoftGraphService = $microsoftGraphService; // AJOUTÉ
+        $this->redis = $redis; // AJOUTÉ
     }
 
     private function sendJsonResponse(mixed $data, int $http_code = 200): void
@@ -104,35 +108,34 @@ class ApiController
         }
     }
     
+    /**
+     * MODIFIÉ : Lit les données du widget DEPUIS LE CACHE REDIS
+     */
     public function getWidgetData(int $id): void
     {
         try {
-            $service = $this->serviceModel->getById($id);
-            if (!$service) {
-                $this->sendJsonResponse(['error' => 'Service non trouvé.'], 404);
-                return;
+            $cacheKey = "widget:data:" . $id;
+            $cachedData = $this->redis->get($cacheKey);
+
+            if ($cachedData) {
+                // Les données sont en cache, on les envoie brutes (c'est déjà du JSON)
+                http_response_code(200);
+                header('Content-Type: application/json');
+                if (ob_get_level() > 0) {
+                    ob_clean();
+                }
+                echo $cachedData;
+                exit;
             }
 
-            $data = [];
-            $widgetType = $service['widget_type'] ?? 'link'; 
-            
-            if ($widgetType === 'link') {
-                $data = ['error' => 'Ce service est un lien, il n\'a pas de données de widget.'];
-            } else {
-                $widgetService = $this->widgetRegistry->getService($widgetType);
-                
-                if ($widgetService) {
-                    $data = $widgetService->getWidgetData($service);
-                } else {
-                    $data = ['error' => "Type de widget '{$widgetType}' non supporté ou non enregistré."];
-                }
-            }
-            
-            $this->sendJsonResponse($data);
+            // Si le cache est vide (le worker n'a pas encore tourné)
+            // On renvoie un statut "en attente"
+            // Le client recevra les données via SSE dès qu'elles seront prêtes.
+            $this->sendJsonResponse(['error' => 'Données en cours de génération...'], 202); // 202 Accepted
 
         } catch (\Exception $e) {
-            error_log('Erreur getWidgetData: ' . $e->getMessage());
-            $this->sendJsonResponse(['error' => 'Erreur interne du serveur.'], 500);
+            error_log('Erreur getWidgetData (Cache): ' . $e->getMessage());
+            $this->sendJsonResponse(['error' => 'Erreur interne du serveur (Cache).'], 500);
         }
     }
 
